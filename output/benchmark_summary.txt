@@ -1,0 +1,45 @@
+
+=== Overall (all conditions) ===
+             success_rate  avg_cost  optimality  nodes_expanded  runtime_ms
+algorithm                                                                  
+A*                  0.592    80.948       1.000         843.762       4.917
+BFS                 0.592    80.974       1.000        1483.296       6.587
+Dijkstra            0.592    80.948       1.000        1483.529       8.610
+Greedy              0.592    88.620       1.079         230.767       1.369
+Weighted A*         0.592    85.614       1.049         234.892       1.425
+
+=== By movement model ===
+                   success_rate  avg_cost  optimality  nodes_expanded  runtime_ms
+moves algorithm                                                                  
+4-way A*                  0.592    89.718       1.000        1100.183       4.942
+      BFS                 0.592    89.718       1.000        1483.675       4.565
+      Dijkstra            0.592    89.718       1.000        1483.675       6.017
+      Greedy              0.592   101.352       1.115         244.408       0.999
+      Weighted A*         0.592    97.042       1.075         249.342       1.090
+8-way A*                  0.592    72.178       1.000         587.342       4.891
+      BFS                 0.592    72.230       1.000        1482.917       8.608
+      Dijkstra            0.592    72.178       1.000        1483.383      11.203
+      Greedy              0.592    75.887       1.044         217.125       1.739
+      Weighted A*         0.592    74.185       1.024         220.442       1.761
+
+=== By map type (41×41, 4-way) ===
+                    nodes_expanded  runtime_ms  optimality
+map    algorithm                                          
+maze   A*                    432.4       1.662       1.000
+       BFS                   487.9       1.497       1.000
+       Dijkstra              487.9       2.042       1.000
+       Greedy                352.1       1.465       1.000
+       Weighted A*           410.7       1.553       1.000
+random A*                    641.4       3.025       1.000
+       BFS                  1126.3       3.707       1.000
+       Dijkstra             1126.3       5.391       1.000
+       Greedy                223.8       1.407       1.193
+       Weighted A*           229.9       1.567       1.062
+rooms  A*                    839.2       3.862       1.000
+       BFS                  1421.8       4.680       1.000
+       Dijkstra             1421.8       6.794       1.000
+       Greedy                125.1       0.777       1.240
+       Weighted A*           147.3       0.843       1.105
+chart: output/benchmark_vs_density.png
+chart: output/benchmark_vs_size.png
+chart: output/reachability.png

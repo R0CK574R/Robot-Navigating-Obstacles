@@ -1,0 +1,6 @@
+# tested with numpy 2.5, scipy 1.18, matplotlib 3.11, pandas 3.0, pytest 9.1
+numpy
+scipy
+matplotlib
+pandas
+pytest

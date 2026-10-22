@@ -1,0 +1,2430 @@
+<title>Rover Hill Course</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: full-bleed 3D stage filmed by a follow drone. Title + map picker top-left, rally stage board top-right,
+   drone feed + course map bottom-left, telemetry or the route planner along the bottom; on phones the panels stack.
+   One committed dark HUD look over bright daylight scenes, so there is no light variant. */
+:root {
+  --ink: #ece6d6;
+  --muted: #a7a291;
+  --panel: rgba(23, 27, 22, 0.84);
+  --edge: rgba(236, 230, 214, 0.14);
+  --hover: rgba(236, 230, 214, 0.06);
+  --flag: #f2a93b;
+  --flag-soft: rgba(242, 169, 59, 0.16);
+  --flag-ink: #1b1a14;
+  --accent: #39ff14;
+  --start: #4fae6a;
+  --rec: #e2564b;
+  --map-bg: #2a2f25;
+  --bg: #20241d;
+  --good: #7fc28a;
+  --warn: #e7c35a;
+  --bad: #e2775c;
+  --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); overflow: hidden; }
+#stage { position: fixed; inset: 0; }
+#stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+.hud {
+  position: fixed; inset: 0; pointer-events: none;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding-block: calc(14px + env(safe-area-inset-top, 0px)) calc(14px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.board {
+  pointer-events: auto; min-width: 0;
+  background: var(--panel); border: 1px solid var(--edge); border-radius: 6px;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+
+.title { grid-column: 1 / 3; grid-row: 1; justify-self: start; align-self: start; padding: 12px 16px; max-width: min(31rem, 100%); }
+.eyebrow { font-family: var(--f-data); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--flag); }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: 30px; line-height: 1; margin: 4px 0 8px; letter-spacing: 0.01em; text-wrap: balance; }
+.maps { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.maps button { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; }
+.maps button[aria-pressed="true"] { border-color: var(--flag); color: var(--flag); background: var(--flag-soft); }
+.maps i { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px var(--edge); }
+.specs { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--f-data); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.specs b { color: var(--ink); font-weight: 600; }
+
+.times { grid-column: 3; grid-row: 1 / 3; align-self: start; width: 27.5rem; max-height: 100%; overflow: auto; padding-bottom: 8px; }
+.times:not([open]) { padding-bottom: 0; }
+.times summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 16px 8px; }
+.times:not([open]) summary { padding-bottom: 12px; }
+.times summary::-webkit-details-marker { display: none; }
+.sum-title { display: inline-flex; align-items: center; gap: 10px; font-family: var(--f-display); font-weight: 600; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.sum-title::before { content: ""; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform 0.2s; }
+.times[open] .sum-title::before { transform: translateY(-2px) rotate(45deg); }
+.sum-pick { font-family: var(--f-data); font-size: 12px; color: var(--ink); white-space: nowrap; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { font-family: var(--f-data); font-weight: 400; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 4px 8px; }
+th:first-child, td:first-child { text-align: left; padding-left: 16px; }
+th:last-child, td:last-child { padding-right: 16px; }
+td { font-family: var(--f-data); font-size: 12.5px; text-align: right; padding: 7px 8px; border-top: 1px solid var(--edge); }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: var(--hover); }
+tbody tr[aria-selected="true"] td { background: var(--flag-soft); }
+tbody tr:focus-visible { outline: 2px solid var(--flag); outline-offset: -2px; }
+tbody tr.mine .alg { color: var(--accent); }
+.alg { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-family: var(--f-body); font-weight: 600; font-size: 13.5px; }
+.swatch { width: 14px; height: 4px; border-radius: 2px; flex: none; }
+.swatch.dashed { background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px) !important; }
+.board-empty { margin: 2px 16px 12px; font-size: 13.5px; line-height: 1.5; color: var(--muted); max-width: 44ch; }
+.board-empty b { color: var(--ink); font-weight: 600; }
+.board-save { margin: 10px 16px 0; padding: 8px 10px; border-left: 3px solid var(--accent); background: rgba(57, 255, 20, 0.07);
+  font-size: 13px; line-height: 1.45; max-width: 46ch; }
+.board-save b { color: var(--accent); font-weight: 600; }
+.pos { font-family: var(--f-display); font-weight: 700; color: var(--muted); width: 1.2em; display: inline-block; }
+tr[aria-selected="true"] .pos { color: var(--flag); }
+.delta { color: var(--muted); font-size: 11px; }
+.delta.best { color: var(--good); }
+.toggles { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px 4px; }
+.note { margin: 8px 16px 2px; font-size: 12px; line-height: 1.45; color: var(--muted); max-width: 44ch; }
+.board-msg { margin: 8px 16px 0; font-family: var(--f-data); font-size: 11.5px; line-height: 1.5; color: var(--good); max-width: 46ch; }
+#route-json { display: block; box-sizing: border-box; width: calc(100% - 32px); margin: 6px 16px 0; height: 4.6em; font: 11px/1.4 var(--f-data);
+  background: var(--map-bg); color: var(--ink); border: 1px solid var(--edge); border-radius: 4px; resize: vertical; }
+
+.drone { grid-column: 1; grid-row: 2; align-self: end; width: 14rem; padding: 10px 12px 12px; display: grid; gap: 8px; }
+.drone-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-family: var(--f-data); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; }
+.drone-head b { color: var(--ink); font-weight: 600; }
+.drone-label { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); font-weight: 600; margin-right: auto; }
+.rec { width: 8px; height: 8px; border-radius: 50%; background: var(--rec); animation: rec 1.4s steps(1, end) infinite; }
+@keyframes rec { 50% { opacity: 0.2; } }
+#minimap { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 3px; background: var(--map-bg); }
+.map-key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-family: var(--f-data); font-size: 10.5px; color: var(--muted); }
+.map-key span { display: inline-flex; align-items: center; gap: 5px; }
+.map-key i { width: 9px; height: 9px; display: inline-block; }
+.k-rover { background: var(--accent); clip-path: polygon(50% 0, 100% 100%, 50% 72%, 0 100%); }
+.k-drone { background: var(--ink); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.k-start { background: var(--start); border-radius: 50%; }
+.k-finish { background: var(--ink); border-radius: 50%; }
+
+.tele, .drawbar { grid-column: 1 / -1; grid-row: 3; }
+.tele { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; padding: 10px 16px; }
+.controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+button, .chip {
+  font: 600 13px/1 var(--f-body); color: var(--ink); background: transparent;
+  border: 1px solid var(--edge); border-radius: 4px; padding: 8px 11px; cursor: pointer;
+}
+button:hover, .chip:hover { border-color: var(--muted); }
+button:focus-visible, .chip:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--flag); outline-offset: 2px; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.primary { background: var(--flag); color: var(--flag-ink); border-color: var(--flag); min-width: 5.2em; }
+button.go { background: var(--accent); color: var(--flag-ink); border-color: var(--accent); min-width: 5.2em; }
+.plan-btn { border-color: var(--accent); color: var(--accent); }
+.chip[aria-pressed="true"] { border-color: var(--flag); color: var(--flag); }
+.views { display: inline-flex; border: 1px solid var(--edge); border-radius: 4px; overflow: hidden; }
+.views button { border: 0; border-radius: 0; border-left: 1px solid var(--edge); }
+.views button:first-child { border-left: 0; }
+.views button:hover { background: var(--hover); }
+.views button[aria-pressed="true"] { background: var(--flag-soft); color: var(--flag); }
+.gauges { display: flex; flex-wrap: wrap; gap: 6px 18px; font-variant-numeric: tabular-nums; flex: 1 1 22rem; min-width: 0; }   /* too little room: own line */
+.g { display: grid; gap: 2px; min-width: 4.4rem; }
+.g span { font-family: var(--f-data); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.g output { font-family: var(--f-display); font-weight: 600; font-size: 20px; line-height: 1; white-space: nowrap; }
+.g output small { font-family: var(--f-data); font-size: 11px; color: var(--muted); margin-left: 2px; }
+.surf-good { color: var(--good); } .surf-warn { color: var(--warn); } .surf-bad { color: var(--bad); }
+.progress { flex-basis: 100%; height: 3px; background: var(--edge); border-radius: 2px; overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--flag); }
+label.speed { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-data); font-size: 11px; color: var(--muted); }
+label.speed output { color: var(--ink); min-width: 2.4em; }
+input[type=range] { accent-color: var(--flag); width: 84px; }
+
+.drawbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; padding: 12px 16px; }
+.draw-text { display: grid; gap: 3px; flex: 1 1 24rem; min-width: 0; }
+.draw-title { font-family: var(--f-display); font-weight: 600; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.draw-hint { margin: 0; font-size: 13.5px; line-height: 1.4; }
+.draw-msg { margin: 0; min-height: 2.9em; font-family: var(--f-data); font-size: 12px; line-height: 1.45; color: var(--muted); }   /* 2 lines kept free: the bar doesn't jump */
+.draw-pointer { margin: 0; min-height: 1.45em; font-family: var(--f-data); font-size: 11.5px; line-height: 1.45; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.draw-msg[data-tone="bad"] { color: var(--bad); }
+.draw-msg[data-tone="good"] { color: var(--good); }
+.draw-stats { display: flex; flex-wrap: wrap; gap: 6px 18px; font-variant-numeric: tabular-nums; }
+.draw-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+/* start & finish: pick which one the next click places, or type its row, col */
+.markers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.marker { display: inline-flex; align-items: center; gap: 4px; }
+.marker-pick { display: inline-flex; align-items: center; gap: 7px; }
+.marker-pick i { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4); }
+.marker-pick[data-kind="start"] i { background: var(--start); }
+.marker-pick[data-kind="finish"] i { background: var(--ink); }
+.marker-pick[aria-pressed="true"] { background: var(--hover); }
+.marker-pick[data-kind="start"][aria-pressed="true"] { border-color: var(--start); color: #9fe0b0; }
+.marker-pick[data-kind="finish"][aria-pressed="true"] { border-color: var(--ink); }
+.marker-at { width: calc(8ch + 18px); box-sizing: border-box; padding: 7px 8px; font: 13px/1 var(--f-data); color: var(--ink); background: var(--map-bg);
+  border: 1px solid var(--edge); border-radius: 4px; font-variant-numeric: tabular-nums; }
+.marker-at::placeholder { color: var(--muted); opacity: 0.8; }
+.marker-swap { padding: 6px 9px; font-size: 15px; }
+
+.more-btn[aria-expanded="true"] { border-color: var(--ink); background: var(--hover); }
+.more-btn.cta { background: var(--accent); color: var(--flag-ink); border-color: var(--accent); }   /* empty map: start here */
+.paths { grid-column: 1; grid-row: 2; align-self: end; width: min(24rem, calc(100vw - 31rem)); max-height: 100%; box-sizing: border-box;
+  display: flex; flex-direction: column; overflow: hidden; padding-block: 12px; }
+.paths-head { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 10px; padding: 0 12px 10px 16px; }
+.paths-head .sum-title { white-space: nowrap; }
+.paths-head .sum-title::before { content: none; }
+.paths-head .sum-title span { color: var(--ink); }
+#paths-close { justify-self: end; padding: 5px 9px; font-size: 15px; }
+.paths-count { font-family: var(--f-data); font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.paths-actions { display: flex; gap: 6px; }
+.paths-actions .chip { padding: 6px 9px; white-space: nowrap; }
+.paths-list { list-style: none; margin: 0; padding: 0; flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.paths-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 5px 12px 5px 16px; border-top: 1px solid var(--edge); }
+.paths-list li[aria-current="true"] { background: var(--flag-soft); }
+.paths-list label { display: flex; align-items: center; gap: 8px; min-width: 0; cursor: pointer; font-size: 13px; }
+.paths-list label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.paths-list input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; flex: none; }
+.paths-list i { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.paths-list b { font-family: var(--f-display); font-weight: 700; font-size: 15px; min-width: 1.6em; }
+.paths-list .chip { padding: 6px 10px; }
+.paths-time { font-family: var(--f-data); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.paths-note { flex: none; margin: 8px 16px 0; font-size: 12px; line-height: 1.45; color: var(--muted); max-width: 46ch; }
+@media (max-width: 1100px) { .paths-dist { display: none; } }
+@media (max-height: 760px) { .paths-note { display: none; } }
+
+@media (max-width: 760px) {
+  .hud { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 8px; }
+  .title { grid-column: 1; padding: 10px 12px; }
+  .eyebrow { display: none; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .maps { margin-bottom: 6px; }
+  .maps button { padding: 6px 9px; font-size: 12.5px; }
+  .drone { display: none; }
+  .times { grid-column: 1; grid-row: 3; width: auto; max-height: 38vh; }
+  .note, .hide-sm { display: none; }
+  .tele, .drawbar { grid-row: 4; flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 12px; }
+  .views { display: flex; }
+  .views button { flex: 1; padding: 8px 4px; font-size: 12.5px; }
+  .gauges { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; flex: none; }
+  .g output { font-size: 16px; }
+  .progress { flex-basis: auto; }
+  .draw-text { flex: none; }
+  .draw-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 10px; }
+  .draw-actions button { flex: 1; }
+  .draw-msg { min-height: 4.35em; }                /* 3 lines on a phone */
+  .draw-pointer { display: none; }                 /* no hovering on touch screens */
+  .paths { width: auto; max-height: 72%; }
+  .paths-note { display: none; }
+}
+@media (max-width: 380px) { .paths-time { display: none; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div id="stage" aria-label="3D view of the selected map"></div>
+
+<div class="hud">
+  <header class="board title" id="title-board">
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1>Rover Hill Course</h1>
+    <div class="maps" id="maps" role="group" aria-label="Map"></div>
+    <div class="specs" id="specs"></div>
+  </header>
+
+  <details class="board times" id="board" open>
+    <summary><span class="sum-title">Stage board</span><span class="sum-pick" id="sum-pick"></span></summary>
+    <p class="board-empty" id="board-empty" hidden>No route yet. Tick a path in <b>More paths</b> and the rover drives its quickest route over the hills, or use <b>Set start &amp; finish</b> to choose your own.</p>
+    <table id="board-table">
+      <thead><tr><th>Planner</th><th>Time</th><th>Dist m</th><th class="hide-sm">Climb m</th><th>Searched</th><th class="hide-sm">ms</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p class="board-save" id="board-save" role="status" hidden></p>
+    <div class="toggles" id="board-toggles">
+      <button class="chip" id="t-short" aria-pressed="true">Shortest route</button>
+      <button class="chip" id="t-routes" aria-pressed="false">All planners</button>
+      <button class="chip" id="t-search" aria-pressed="false">Search area</button>
+      <button class="chip" id="t-copy" hidden>Copy your route</button>
+    </div>
+    <p class="board-msg" id="board-msg" role="status" aria-live="polite" hidden></p>
+    <textarea id="route-json" readonly hidden aria-label="Your route as JSON"></textarea>
+    <p class="note">Time is how long the rover takes: it cruises at 1 m/s and slows on rough ground and climbs. The shortest route (dashed) ignores the hills: least distance, not least time. Pick a row to watch that route.</p>
+  </details>
+
+  <section class="board drone" id="drone" aria-label="Drone camera and map">
+    <div class="drone-head">
+      <span class="drone-label"><span class="rec" aria-hidden="true"></span><span id="d-label">Drone cam</span></span>
+      <span>Alt <b id="d-alt">0</b> m</span><span>Hdg <b id="d-hdg">000</b>°</span>
+    </div>
+    <canvas id="minimap" role="img" aria-label="Map with the rover, the drone and the planned routes"></canvas>
+    <div class="map-key"><span><i class="k-rover"></i>Rover</span><span><i class="k-drone"></i>Drone</span><span><i class="k-start"></i>Start</span><span><i class="k-finish"></i>Finish</span></div>
+  </section>
+
+  <section class="board paths" id="paths" aria-label="More paths" hidden>
+    <div class="paths-head">
+      <span class="sum-title">More paths · <span id="paths-map"></span></span>
+      <button class="chip" id="paths-close" aria-label="Close more paths">×</button>
+      <span class="paths-count" id="paths-count" role="status"></span>
+      <span class="paths-actions">
+        <button class="chip" id="paths-all">Add all</button>
+        <button class="chip" id="paths-none">Remove all</button>
+      </span>
+    </div>
+    <ol class="paths-list" id="paths-list"></ol>
+    <p class="paths-note">Tick a path to draw its quickest route over the hills; the first one starts the rover. Drive sends the rover along a path and races the planners on it. Times: quickest route vs the shortest route, which ignores the hills.</p>
+  </section>
+
+  <section class="board tele" id="tele" aria-label="Rover controls and telemetry">
+    <div class="controls">
+      <button class="primary" id="play">Pause</button>
+      <button id="restart">Restart</button>
+      <button class="plan-btn" id="plan-btn">Set start &amp; finish</button>
+      <button class="more-btn" id="more-btn" aria-expanded="false" aria-controls="paths">More paths</button>
+      <label class="speed" for="speed">Speed <input type="range" id="speed" min="1" max="30" step="1" value="8"><output id="speed-val" for="speed">8×</output></label>
+    </div>
+    <div class="views" role="group" aria-label="Camera view">
+      <button data-mode="drone" aria-pressed="true">Drone</button>
+      <button data-mode="top" aria-pressed="false">Top-down</button>
+      <button data-mode="chase" aria-pressed="false">Chase</button>
+      <button data-mode="course" aria-pressed="false">Overview</button>
+    </div>
+    <div class="gauges">
+      <div class="g"><span>Planner</span><output id="g-alg">—</output></div>
+      <div class="g"><span>Time</span><output id="g-time">0:00</output></div>
+      <div class="g"><span>Driven</span><output><span id="g-dist">0</span><small>m</small></output></div>
+      <div class="g"><span>Elevation</span><output><span id="g-elev">0</span><small>m</small></output></div>
+      <div class="g"><span>Grade</span><output><span id="g-grade">0</span><small>%</small></output></div>
+      <div class="g"><span>Surface</span><output id="g-surf">—</output></div>
+    </div>
+    <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+  </section>
+
+  <section class="board drawbar" id="planbar" aria-label="Set start and finish" hidden>
+    <div class="draw-text">
+      <div class="draw-title" id="pb-title">Set start &amp; finish</div>
+      <p class="draw-hint" id="pb-hint"></p>
+      <p class="draw-msg" id="pb-msg" role="status" aria-live="polite"></p>
+      <p class="draw-pointer" id="pb-cursor" aria-hidden="true"></p>
+    </div>
+    <div class="markers" id="pb-markers" role="group" aria-label="Start and finish positions">
+      <span class="marker">
+        <button class="marker-pick" data-kind="start" id="pb-start" aria-pressed="true" title="The next click on the map places the START"><i></i>Start</button>
+        <input class="marker-at" id="pb-start-at" autocomplete="off" spellcheck="false" placeholder="row, col" aria-label="Start position as row, column">
+      </span>
+      <button class="chip marker-swap" id="pb-swap" title="Swap start and finish" aria-label="Swap start and finish">⇄</button>
+      <span class="marker">
+        <button class="marker-pick" data-kind="finish" id="pb-finish" aria-pressed="false" title="The next click on the map places the FINISH"><i></i>Finish</button>
+        <input class="marker-at" id="pb-finish-at" autocomplete="off" spellcheck="false" placeholder="row, col" aria-label="Finish position as row, column">
+      </span>
+    </div>
+    <div class="draw-stats" id="pb-stats" hidden>
+      <div class="g"><span>Points</span><output id="dr-pts">0</output></div>
+      <div class="g"><span>Distance</span><output><span id="dr-dist">0</span><small>m</small></output></div>
+      <div class="g"><span>Time</span><output id="dr-time">0:00</output></div>
+      <div class="g"><span>Quickest</span><output id="dr-best">0:00</output></div>
+    </div>
+    <div class="draw-actions">
+      <button id="pb-undo" hidden>Undo</button>
+      <button id="pb-clear" hidden>Clear</button>
+      <button id="pb-draw">Draw your own</button>
+      <button id="pb-close">Close</button>
+      <button class="go" id="pb-go">Drive</button>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const SCENE = /*__SCENE__*/null;
+
+(function () {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const ease = e => (e < 0.5 ? 4 * e * e * e : 1 - Math.pow(-2 * e + 2, 3) / 2);
+  const wrapPi = a => Math.atan2(Math.sin(a), Math.cos(a));
+  const fmtTime = sec => { const s = Math.max(0, Math.round(sec)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+  const sameCell = (a, b) => a[0] === b[0] && a[1] === b[1];
+  const hex = s => [parseInt(s.slice(1, 3), 16) / 255, parseInt(s.slice(3, 5), 16) / 255, parseInt(s.slice(5, 7), 16) / 255];
+  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const lin = s => new THREE.Color(s).convertSRGBToLinear();
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const coarse = matchMedia("(pointer: coarse)").matches;
+  const narrow = () => innerWidth <= 760;
+  const tapWord = coarse ? "Tap" : "Click";
+  const navHint = coarse ? "Drag to move the map, pinch to zoom." : "Drag to move the map, scroll to zoom.";
+  const COST = SCENE.cost, RADIAL = 6, NEON_CSS = "#39ff14";
+  const PLANNERS = [
+    { key: "astar", name: "A*", color: "#f2a93b" }, { key: "dijkstra", name: "Dijkstra", color: "#4f8fd6" },
+    { key: "wastar", name: "Weighted A*", color: "#d96bd0" }, { key: "greedy", name: "Greedy", color: "#e2564b" },
+    { key: "bfs", name: "BFS", color: "#9aa3b5" },
+    // not a planner: the route a robot that ignores hills would take (least distance), drawn dashed for comparison
+    { key: "short", name: "Shortest route", color: "#f4f1e8", dashed: true }];
+
+  // Look of each map. Costs and terrain come from Python; this is only how they are drawn.
+  const THEMES = {
+    grassland: {
+      swatch: "#5aa83c", sky: ["#3f7cc4", "#9cc6ec", "#e6f2fa"], fog: "#d3e5f1", skirt: "#4b3a28",
+      sun: ["#fff4e0", 1.25, [-0.6, 0.95, -0.35]], hemi: ["#e8f3ff", "#41602c", 0.8],
+      surf: [["#3a7a2a", "#74ab47"], ["#285c22", "#40782e"]], steep: "#2a5222",
+      rock: "#8f8d86", tree: "broadleaf", treeName: "tree", leaf: "#3d8a33", trunk: "#5c4330", marks: "#2c4a20",
+      dust: [{ rate: 7, col: "#b9c48a", size: 0.25, grow: 0.7, life: 1.2, a: 0.22, grav: -0.1, up: 0.3, upR: 0.4 },
+             { rate: 16, col: "#5f9a3d", size: 0.12, grow: 0.05, life: 0.7, a: 0.9, grav: 6, up: 1.2, upR: 1.0 }],
+    },
+    desert: {
+      swatch: "#e0b46c", sky: ["#5d93c9", "#c8d9e4", "#f3e2c4"], fog: "#efdcbd", skirt: "#9a6a3c",
+      sun: ["#fff0d2", 1.4, [-0.7, 0.8, 0.25]], hemi: ["#fff3df", "#9a7448", 0.7],
+      surf: [["#c99a5b", "#e2bf86"], ["#e4c48e", "#f4dcab"], ["#9c6a43", "#ba8659"]], steep: "#b07a48",
+      rock: "#b5774a", tree: "cactus", treeName: "cactus", leaf: "#4f8a3f", trunk: "#4f8a3f", marks: "#9b6f40",
+      dust: [{ rate: 18, col: "#e6cf9f", size: 0.32, grow: 1.0, life: 1.4, a: 0.32, grav: -0.12, up: 0.4, upR: 0.5 },
+             { rate: 32, col: "#f0dcb0", size: 0.4, grow: 1.3, life: 1.6, a: 0.38, grav: -0.12, up: 0.5, upR: 0.6 },
+             { rate: 12, col: "#b49a80", size: 0.26, grow: 0.9, life: 1.2, a: 0.3, grav: -0.1, up: 0.4, upR: 0.5 }],
+    },
+    island: {
+      swatch: "#2bb3c0", sky: ["#2f86d6", "#8fd0f0", "#e8f8fb"], fog: "#d2edf3", skirt: "#7a6a4a",
+      sun: ["#fff6e6", 1.3, [-0.5, 0.95, -0.4]], hemi: ["#e6f7ff", "#3c6a4a", 0.8],
+      surf: [["#4a8f37", "#78b250"], ["#e6d39f", "#f0e2b8"], ["#235c28", "#3a7631"]], steep: "#5a5f4a",
+      rock: "#55535a", tree: "palm", treeName: "palm tree", leaf: "#3f9a3a", trunk: "#8a6a45", marks: "#6b5a3a",
+      water: "#1fa5b8", seabed: "#c9b98a",
+      dust: [{ rate: 7, col: "#b9c48a", size: 0.25, grow: 0.7, life: 1.2, a: 0.22, grav: -0.1, up: 0.3, upR: 0.4 },
+             { rate: 22, col: "#efe2bd", size: 0.32, grow: 1.0, life: 1.4, a: 0.34, grav: -0.12, up: 0.4, upR: 0.5 },
+             { rate: 14, col: "#3f7a32", size: 0.12, grow: 0.05, life: 0.7, a: 0.9, grav: 6, up: 1.2, upR: 1.0 }],
+    },
+  };
+
+  // ---------------------------------------------------------------- the current map (reassigned by loadMap)
+  let MAP = null, THEME = null, R = 0, C = 0, H = null, SURF = null, OBS = null, SCOST = null;
+  let PAL = null, DUSTS = null, hMin = 0, hMax = 1, START = null, GOAL = null;
+  const hAt = (r, c) => H[r * C + c];
+  const toX = c => c - (C - 1) / 2, toZ = r => r - (R - 1) / 2;
+  // Height of the rendered surface, using the same triangle split as THREE.PlaneGeometry.
+  function groundH(x, z) {
+    const c = clamp(x + (C - 1) / 2, 0, C - 1.0001), r = clamp(z + (R - 1) / 2, 0, R - 1.0001);
+    const c0 = Math.floor(c), r0 = Math.floor(r), fc = c - c0, fr = r - r0;
+    const a = hAt(r0, c0), d = hAt(r0, c0 + 1), b = hAt(r0 + 1, c0), cc = hAt(r0 + 1, c0 + 1);
+    return fc + fr <= 1 ? a + (d - a) * fc + (b - a) * fr : cc + (b - cc) * (1 - fc) + (d - cc) * (1 - fr);
+  }
+  const _n = new THREE.Vector3();
+  function normalAt(x, z, e) {
+    return _n.set(groundH(x - e, z) - groundH(x + e, z), 2 * e, groundH(x, z - e) - groundH(x, z + e)).normalize();
+  }
+  function groundRGB(i) {                         // sRGB colour of a cell (terrain mesh and course map)
+    const r = (i / C) | 0, c = i - r * C, h = H[i];
+    if (OBS[i] === 3) return mix(PAL.seabed, PAL.water, clamp((MAP.sea - h) / 3, 0, 1) * 0.6);
+    const gx = (H[r * C + Math.min(c + 1, C - 1)] - H[r * C + Math.max(c - 1, 0)]) / 2;
+    const gz = (H[Math.min(r + 1, R - 1) * C + c] - H[Math.max(r - 1, 0) * C + c]) / 2;
+    const slope = Math.hypot(gx, gz), lo = MAP.sea != null ? MAP.sea : hMin;
+    const pair = PAL.surf[SURF[i]] || PAL.surf[0];
+    let col = mix(pair[0], pair[1], clamp((h - lo) / ((hMax - lo) || 1), 0, 1));
+    if (slope > MAP.max_grade) col = mix(col, PAL.steep, 0.6);
+    else if (slope > MAP.max_grade * 0.7) col = mix(col, PAL.steep, 0.3);
+    return col;
+  }
+
+  // ---------------------------------------------------------------- renderer, sky, light
+  const stage = $("stage");
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  stage.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const skyCv = document.createElement("canvas"); skyCv.width = 2; skyCv.height = 256;
+  const skyTex = new THREE.CanvasTexture(skyCv); skyTex.encoding = THREE.sRGBEncoding;
+  scene.background = skyTex;
+  scene.fog = new THREE.Fog(0xffffff, 90, 230);
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1500);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
+  const courseCenter = new THREE.Vector3();
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0008;
+  scene.add(sun, sun.target);
+  function applyTheme() {
+    const T = THEME, g = skyCv.getContext("2d"), gr = g.createLinearGradient(0, 0, 0, 256);
+    gr.addColorStop(0, T.sky[0]); gr.addColorStop(0.55, T.sky[1]); gr.addColorStop(1, T.sky[2]);
+    g.fillStyle = gr; g.fillRect(0, 0, 2, 256); skyTex.needsUpdate = true;
+    scene.fog.color.copy(lin(T.fog));
+    hemi.color.copy(lin(T.hemi[0])); hemi.groundColor.copy(lin(T.hemi[1])); hemi.intensity = T.hemi[2];
+    sun.color.copy(lin(T.sun[0])); sun.intensity = T.sun[1];
+    sun.position.set(T.sun[2][0] * C, T.sun[2][1] * C, T.sun[2][2] * C);
+    Object.assign(sun.shadow.camera, { left: -C * 0.75, right: C * 0.75, top: C * 0.75, bottom: -C * 0.75, near: 1, far: C * 3 });
+    sun.shadow.camera.updateProjectionMatrix();
+  }
+  const std = (color, o) => {
+    const m = new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.9 }, o || {}));
+    m.color.convertSRGBToLinear(); return m;
+  };
+  function disposeTree(obj) {
+    obj.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) [].concat(o.material).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); });
+    });
+  }
+
+  // ---------------------------------------------------------------- scenery: terrain, water, rocks and trees
+  const M4 = (x, y, z, rx, ry, rz, sx, sy, sz) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(rx || 0, ry || 0, rz || 0, "YXZ")), new THREE.Vector3(sx || 1, sy || 1, sz || 1));
+  function mergeGeos(parts) {                       // [[geometry, matrix], ...] → one geometry
+    const pos = [], nor = [];
+    for (const [g0, m] of parts) {
+      const g = g0.toNonIndexed(); g.applyMatrix4(m); g.computeVertexNormals();
+      pos.push(...g.attributes.position.array); nor.push(...g.attributes.normal.array);
+      g.dispose(); g0.dispose();
+    }
+    const out = new THREE.BufferGeometry();
+    out.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    out.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+    return out;
+  }
+  const TREE_KITS = {                               // each kit: parts sharing one transform per tree
+    broadleaf: () => [
+      { geo: mergeGeos([[new THREE.CylinderGeometry(0.1, 0.14, 1.6, 6), M4(0, 0.8, 0)]]), mat: std(THEME.trunk, { roughness: 1 }) },
+      { geo: mergeGeos([[new THREE.IcosahedronGeometry(1, 0), M4(0, 2.15, 0, 0, 0, 0, 0.95, 0.8, 0.95)],
+                        [new THREE.IcosahedronGeometry(0.6, 0), M4(0.35, 2.75, 0.1, 0.3, 0.5, 0)]]),
+        mat: std(THEME.leaf, { flatShading: true }) }],
+    cactus: () => [
+      { geo: mergeGeos([
+          [new THREE.CylinderGeometry(0.17, 0.2, 2.2, 8), M4(0, 1.1, 0)], [new THREE.SphereGeometry(0.17, 8, 6), M4(0, 2.2, 0)],
+          [new THREE.CylinderGeometry(0.1, 0.1, 0.34, 6), M4(0.26, 1.0, 0, 0, 0, Math.PI / 2)],
+          [new THREE.CylinderGeometry(0.1, 0.1, 0.6, 6), M4(0.42, 1.27, 0)], [new THREE.SphereGeometry(0.1, 6, 5), M4(0.42, 1.57, 0)],
+          [new THREE.CylinderGeometry(0.09, 0.09, 0.3, 6), M4(-0.24, 1.35, 0, 0, 0, Math.PI / 2)],
+          [new THREE.CylinderGeometry(0.09, 0.09, 0.5, 6), M4(-0.38, 1.58, 0)], [new THREE.SphereGeometry(0.09, 6, 5), M4(-0.38, 1.83, 0)]]),
+        mat: std(THEME.leaf, { roughness: 0.8, flatShading: true }) }],
+    palm: () => {
+      const trunk = [], fronds = [];
+      for (let k = 0; k < 5; k++) trunk.push([new THREE.CylinderGeometry(0.1, 0.13, 0.62, 6), M4(0.035 * k * k, 0.31 + 0.58 * k, 0, 0, 0, -0.07 * k)]);
+      for (let k = 0; k < 7; k++) {
+        const g = new THREE.BoxGeometry(0.26, 0.03, 1.5); g.translate(0, 0, 0.75);
+        fronds.push([g, M4(0.61, 2.95, 0, 0.45, (k / 7) * Math.PI * 2, 0)]);
+      }
+      return [{ geo: mergeGeos(trunk), mat: std(THEME.trunk, { roughness: 0.95, flatShading: true }) },
+              { geo: mergeGeos(fronds), mat: std(THEME.leaf, { roughness: 0.85, flatShading: true, side: THREE.DoubleSide }) }];
+    },
+  };
+  let world = null;
+  function buildWorld() {
+    if (world) { scene.remove(world.group); disposeTree(world.group); }
+    const group = new THREE.Group(), rnd = mulberry(MAP.seed * 7 + 11);
+    // terrain
+    const geo = new THREE.PlaneGeometry(C - 1, R - 1, C - 1, R - 1);
+    geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position, colors = new Float32Array(pos.count * 3), col = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) {
+      pos.setY(i, H[i]);
+      const [r, g, b] = groundRGB(i);
+      col.setRGB(r, g, b).convertSRGBToLinear().offsetHSL(0, 0, (rnd() - 0.5) * 0.03);
+      colors.set([col.r, col.g, col.b], i * 3);
+    }
+    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    geo.computeVertexNormals();
+    const ground = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true }));
+    ground.receiveShadow = true; group.add(ground);
+    // earth skirt so the map reads as a model, not a floating sheet
+    const skirtMat = std(THEME.skirt, { roughness: 1, side: THREE.DoubleSide });
+    const edge = pts => {
+      const g = new THREE.BufferGeometry(), v = [];
+      for (let k = 0; k < pts.length - 1; k++) {
+        const [ax, az, ah] = pts[k], [bx, bz, bh] = pts[k + 1], base = hMin - 3;
+        v.push(ax, ah, az, bx, bh, bz, ax, base, az, bx, bh, bz, bx, base, bz, ax, base, az);
+      }
+      g.setAttribute("position", new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
+      group.add(new THREE.Mesh(g, skirtMat));
+    };
+    const line = (f, n) => Array.from({ length: n }, (_, k) => f(k));
+    edge(line(k => [toX(k), toZ(0), hAt(0, k)], C));
+    edge(line(k => [toX(k), toZ(R - 1), hAt(R - 1, k)], C));
+    edge(line(k => [toX(0), toZ(k), hAt(k, 0)], R));
+    edge(line(k => [toX(C - 1), toZ(k), hAt(k, C - 1)], R));
+    // sea around the island
+    if (MAP.sea != null) {
+      const water = new THREE.Mesh(new THREE.PlaneGeometry(C * 6, R * 6),
+        std(THEME.water, { transparent: true, opacity: 0.84, roughness: 0.15, metalness: 0.05 }));
+      water.rotation.x = -Math.PI / 2; water.position.y = MAP.sea; water.receiveShadow = true; group.add(water);
+      const deep = mix(PAL.seabed, PAL.water, 0.6), floorMat = std("#000000");
+      floorMat.color.setRGB(deep[0], deep[1], deep[2]).convertSRGBToLinear();
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(C * 6, R * 6), floorMat);
+      floor.rotation.x = -Math.PI / 2; floor.position.y = hMin - 0.05; floor.receiveShadow = true; group.add(floor);
+    }
+    // rocks and trees
+    const rocks = [], trees = [];
+    for (let i = 0; i < OBS.length; i++) { if (OBS[i] === 1) rocks.push(i); else if (OBS[i] === 2) trees.push(i); }
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+    if (rocks.length) {
+      const mesh = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.38, 0), std(THEME.rock, { flatShading: true }), rocks.length);
+      rocks.forEach((i, k) => {
+        const r = (i / C) | 0, c = i - r * C, s = 0.8 + rnd() * 0.45;
+        q.setFromEuler(e.set(rnd() * 3, rnd() * 3, rnd() * 3));
+        mesh.setMatrixAt(k, m4.compose(v.set(toX(c) + (rnd() - 0.5) * 0.16, H[i] + 0.12 * s, toZ(r) + (rnd() - 0.5) * 0.16), q,
+          sc.set(s, s * (0.6 + rnd() * 0.4), s)));
+      });
+      mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
+    }
+    if (trees.length) {
+      const meshes = TREE_KITS[THEME.tree]().map(p => {
+        const m = new THREE.InstancedMesh(p.geo, p.mat, trees.length); m.castShadow = true; group.add(m); return m;
+      });
+      trees.forEach((i, k) => {
+        const r = (i / C) | 0, c = i - r * C, s = 0.8 + rnd() * 0.45;
+        q.setFromEuler(e.set(0, rnd() * Math.PI * 2, 0));
+        m4.compose(v.set(toX(c), H[i], toZ(r)), q, sc.set(s, s, s));
+        meshes.forEach(m => m.setMatrixAt(k, m4));
+      });
+    }
+    scene.add(group);
+    world = { group, ground };
+  }
+
+  // ---------------------------------------------------------------- planners: a 1:1 port of robotnav.algorithms + Terrain
+  // Same neighbour order, costs, heuristic and tie-breaking as Python, so routes, times and searched counts match exactly.
+  const NB_R = [-1, 1, 0, 0, -1, -1, 1, 1], NB_C = [0, 0, -1, 1, -1, 1, -1, 1];
+  function stepCost(a, b) {                       // seconds to drive cell a → neighbour b, or -1 if not allowed
+    const ar = (a / C) | 0, br = (b / C) | 0, dr = br - ar, dc = (b - br * C) - (a - ar * C);
+    if (OBS[b]) return -1;
+    if (dr && dc && (OBS[a + dr * C] || OBS[a + dc])) return -1;
+    const run = (dr && dc ? Math.SQRT2 : 1) * COST.cell, rise = H[b] - H[a], grade = rise / run;
+    if (Math.abs(grade) > MAP.max_grade) return -1;
+    return Math.hypot(run, rise) * SCOST[SURF[b]] * (1 + COST.uphill * Math.max(grade, 0));
+  }
+  function stepDist(a, b) {
+    const ar = (a / C) | 0, br = (b / C) | 0, diag = br !== ar && (b - br * C) !== (a - ar * C);
+    return Math.hypot((diag ? Math.SQRT2 : 1) * COST.cell, H[b] - H[a]);
+  }
+  function stepWhy(a, b) {
+    const o = OBS[b];
+    if (o === 3) return "the water is in the way";
+    if (o === 2) return `a ${THEME.treeName} is in the way`;
+    if (o === 1) return "a rock is in the way";
+    const ar = (a / C) | 0, br = (b / C) | 0, dr = br - ar, dc = (b - br * C) - (a - ar * C);
+    if (dr && dc && (OBS[a + dr * C] || OBS[a + dc])) return "it squeezes between two obstacles";
+    const g = Math.abs(H[b] - H[a]) / ((dr && dc ? Math.SQRT2 : 1) * COST.cell);
+    return `the slope is too steep (${Math.round(g * 100)}% grade, limit ${Math.round(MAP.max_grade * 100)}%)`;
+  }
+  function heur(a, g) {                            // octile distance, as Grid.heuristic × cell size
+    const ar = (a / C) | 0, gr = (g / C) | 0, dr = Math.abs(ar - gr), dc = Math.abs((a - ar * C) - (g - gr * C));
+    return ((dr + dc) + (Math.SQRT2 - 2) * Math.min(dr, dc)) * COST.cell;
+  }
+  class Heap {                                     // min-heap on (priority, tie), like Python's heapq of tuples
+    constructor() { this.f = []; this.t = []; this.v = []; }
+    get size() { return this.v.length; }
+    less(i, j) { return this.f[i] < this.f[j] || (this.f[i] === this.f[j] && this.t[i] < this.t[j]); }
+    swap(i, j) {
+      [this.f[i], this.f[j]] = [this.f[j], this.f[i]]; [this.t[i], this.t[j]] = [this.t[j], this.t[i]]; [this.v[i], this.v[j]] = [this.v[j], this.v[i]];
+    }
+    push(f, t, v) {
+      this.f.push(f); this.t.push(t); this.v.push(v);
+      let i = this.v.length - 1;
+      while (i > 0) { const p = (i - 1) >> 1; if (!this.less(i, p)) break; this.swap(i, p); i = p; }
+    }
+    pop() {
+      const top = this.v[0], last = this.v.length - 1;
+      this.swap(0, last); this.f.pop(); this.t.pop(); this.v.pop();
+      let i = 0;
+      for (;;) {
+        const l = 2 * i + 1, r = l + 1; let m = i;
+        if (l < this.v.length && this.less(l, m)) m = l;
+        if (r < this.v.length && this.less(r, m)) m = r;
+        if (m === i) break;
+        this.swap(i, m); i = m;
+      }
+      return top;
+    }
+  }
+  const PRIO = { dijkstra: (g, h) => g, astar: (g, h) => g + h, wastar: (g, h) => g + 2 * h, greedy: (g, h) => h };
+  function flatStep(a, b) {                        // the hill-blind robot's price: flat distance, plus a hair of drive time
+    const s = stepCost(a, b);                      // so among equally short routes it takes the quickest (as Python)
+    if (s < 0) return -1;
+    const ar = (a / C) | 0, br = (b / C) | 0, diag = br !== ar && (b - br * C) !== (a - ar * C);
+    return (diag ? Math.SQRT2 : 1) * COST.cell + COST.short_tie * s;
+  }
+  function bestFirst(si, gi, prio, step = stepCost) {
+    const N = R * C, g = new Float64Array(N).fill(Infinity), parent = new Int32Array(N).fill(-1), closed = new Uint8Array(N);
+    const heap = new Heap(), explored = [];
+    let tie = 0, peak = 1;
+    g[si] = 0; heap.push(prio(0, heur(si, gi)), tie++, si);
+    while (heap.size) {
+      const cur = heap.pop();
+      if (closed[cur]) continue;                   // stale duplicate entry
+      closed[cur] = 1; explored.push(cur);
+      if (cur === gi) break;
+      const r = (cur / C) | 0, c = cur - r * C;
+      for (let k = 0; k < 8; k++) {
+        const nr = r + NB_R[k], nc = c + NB_C[k];
+        if (nr < 0 || nc < 0 || nr >= R || nc >= C) continue;
+        const n = nr * C + nc, st = step(cur, n);
+        if (st < 0) continue;
+        const ng = g[cur] + st;
+        if (ng < g[n]) { g[n] = ng; parent[n] = cur; heap.push(prio(ng, heur(n, gi)), tie++, n); }
+      }
+      if (heap.size > peak) peak = heap.size;
+    }
+    return { found: closed[gi] === 1, parent, explored, peak };
+  }
+  function bfs(si, gi) {
+    const N = R * C, parent = new Int32Array(N).fill(-1), seen = new Uint8Array(N), q = new Int32Array(N), explored = [];
+    let qh = 0, qt = 0, peak = 1;
+    q[qt++] = si; seen[si] = 1;
+    while (qh < qt) {
+      const cur = q[qh++]; explored.push(cur);
+      if (cur === gi) break;
+      const r = (cur / C) | 0, c = cur - r * C;
+      for (let k = 0; k < 8; k++) {
+        const nr = r + NB_R[k], nc = c + NB_C[k];
+        if (nr < 0 || nc < 0 || nr >= R || nc >= C) continue;
+        const n = nr * C + nc;
+        if (stepCost(cur, n) < 0 || seen[n]) continue;
+        seen[n] = 1; parent[n] = cur; q[qt++] = n;
+      }
+      if (qt - qh > peak) peak = qt - qh;
+    }
+    return { found: seen[gi] === 1, parent, explored, peak };
+  }
+  function statsOf(idx) {
+    let dist = 0, climb = 0, rough = 0;
+    for (let k = 1; k < idx.length; k++) {
+      const d = stepDist(idx[k - 1], idx[k]), rise = H[idx[k]] - H[idx[k - 1]];
+      dist += d; climb += Math.max(rise, 0);
+      if (SCOST[SURF[idx[k]]] > 1) rough += d;
+    }
+    return { distance_m: dist, climb_m: climb, rough_m: rough };
+  }
+  function runPlanners(start, goal) {
+    const si = start[0] * C + start[1], gi = goal[0] * C + goal[1];
+    return PLANNERS.map(p => {
+      const t0 = performance.now();
+      const res = p.key === "bfs" ? bfs(si, gi) : p.key === "short" ? bestFirst(si, gi, PRIO.dijkstra, flatStep) : bestFirst(si, gi, PRIO[p.key]);
+      const ms = performance.now() - t0, idx = [];
+      if (res.found) { for (let i = gi; i !== -1; i = res.parent[i]) idx.push(i); idx.reverse(); }
+      let cost = 0;                                // every route is scored in drive time, the shortest one too
+      for (let k = 1; k < idx.length; k++) cost += stepCost(idx[k - 1], idx[k]);
+      return { key: p.key, name: p.name, color: p.color, dashed: !!p.dashed, found: res.found, cost: res.found ? cost : Infinity,
+               nodes: res.explored.length, peak: res.peak, ms, idx, cells: idx.map(i => [(i / C) | 0, i % C]),
+               explored: res.explored, stats: res.found ? statsOf(idx) : null };
+    });
+  }
+
+  // ---------------------------------------------------------------- route tubes, timing and search areas
+  const dotTex = (() => {
+    const cv = document.createElement("canvas"); cv.width = cv.height = 32;
+    const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.beginPath(); g.arc(16, 16, 14, 0, Math.PI * 2); g.fill();
+    return new THREE.CanvasTexture(cv);
+  })();
+  let routes = [], current = null;
+  const dashCv = (() => {                           // white dash, clear gap: the shortest route is drawn dashed
+    const cv = document.createElement("canvas"); cv.width = 64; cv.height = 4;
+    const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, 38, 4); return cv;
+  })();
+  function dashMap(mat, len, period) {
+    const t = new THREE.CanvasTexture(dashCv);
+    t.wrapS = THREE.RepeatWrapping; t.repeat.set(Math.max(1, Math.round(len / period)), 1);
+    mat.map = t; mat.alphaTest = 0.2;
+  }
+  function buildRouteVisual(rt, lift, dense) {
+    const pts = dense || rt.cells.map(([r, c]) => new THREE.Vector3(toX(c), hAt(r, c) + lift, toZ(r)));
+    if (pts.length < 2) pts.push(pts[0].clone().add(new THREE.Vector3(0.01, 0, 0)));
+    rt.curve = new THREE.CatmullRomCurve3(pts, false, "centripetal");
+    rt.curve.arcLengthDivisions = pts.length * 8;
+    rt.len = rt.curve.getLength();
+    rt.segs = pts.length * (dense ? 2 : 3);
+    rt.mat = new THREE.MeshStandardMaterial({ color: rt.color, emissive: rt.color, emissiveIntensity: 0.45, roughness: 0.5, transparent: true });
+    rt.mat.color.convertSRGBToLinear(); rt.mat.emissive.convertSRGBToLinear();     // show the route's true colour
+    if (rt.dashed) dashMap(rt.mat, rt.len, 1.4);
+    rt.tube = new THREE.Mesh(new THREE.TubeGeometry(rt.curve, rt.segs, rt.user ? 0.15 : 0.11, RADIAL, false), rt.mat);
+    rt.tube.renderOrder = 4.5;                      // above the optional preset lines (4)
+    scene.add(rt.tube);
+    rt.planMat = new THREE.MeshBasicMaterial({ color: rt.color, transparent: true, depthTest: false, depthWrite: false });
+    rt.planMat.color.convertSRGBToLinear();
+    if (rt.dashed) dashMap(rt.planMat, rt.len, 2.6);
+    rt.planTube = new THREE.Mesh(new THREE.TubeGeometry(rt.curve, rt.segs, rt.user ? 0.42 : 0.3, RADIAL, false), rt.planMat);
+    rt.planTube.renderOrder = 5; rt.planTube.visible = false; scene.add(rt.planTube);
+    // where the rover is after t seconds: cumulative time per cell (tAt) and distance along the tube (sAt)
+    const cum = [0];
+    for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + pts[k].distanceTo(pts[k - 1]));
+    const scale = rt.len / (cum[cum.length - 1] || 1), n = rt.idx.length;
+    rt.sAt = new Float64Array(n); rt.tAt = new Float64Array(n);
+    let j = 0;
+    for (let k = 0; k < n; k++) {
+      if (dense) {
+        const x = toX(rt.cells[k][1]), z = toZ(rt.cells[k][0]);
+        let bestJ = j, bestD = Infinity;
+        for (let q = j; q < Math.min(pts.length, j + 40); q++) {
+          const d = Math.hypot(pts[q].x - x, pts[q].z - z);
+          if (d < bestD) { bestD = d; bestJ = q; }
+        }
+        j = bestJ;
+      } else j = Math.min(k, pts.length - 1);
+      rt.sAt[k] = cum[j] * scale;
+      if (k) rt.tAt[k] = rt.tAt[k - 1] + stepCost(rt.idx[k - 1], rt.idx[k]);
+    }
+    rt.search = null;
+    if (!rt.explored.length) return;
+    const buf = new Float32Array(rt.explored.length * 3);
+    rt.explored.forEach((i, k) => buf.set([toX(i % C), H[i] + 0.12, toZ((i / C) | 0)], k * 3));
+    const pg = new THREE.BufferGeometry(); pg.setAttribute("position", new THREE.BufferAttribute(buf, 3));
+    rt.search = new THREE.Points(pg, new THREE.PointsMaterial({ color: rt.color, size: 0.38, map: dotTex, alphaTest: 0.4, transparent: true, opacity: 0.7, depthWrite: false }));
+    rt.search.visible = false; scene.add(rt.search);
+  }
+  function disposeRouteVisual(rt) {
+    [rt.tube, rt.search, rt.planTube].forEach(o => {
+      if (!o) return;
+      scene.remove(o); o.geometry.dispose();
+      if (o.material.map && o.material.map !== dotTex) o.material.map.dispose();
+      o.material.dispose();
+    });
+    rt.tube = rt.search = rt.planTube = null;
+  }
+
+  // ---------------------------------------------------------------- start and finish flags
+  const flags = [], labelJobs = [], zoneRings = [];
+  function labelSprite(text, bg, fg, w = 256) {
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = 96;
+    const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
+    const paint = () => {
+      const g = cv.getContext("2d"); g.clearRect(0, 0, w, 96);
+      g.fillStyle = bg; roundRect(g, 4, 4, w - 8, 88, 14); g.fill();
+      g.fillStyle = fg; g.font = "700 56px 'Barlow Condensed', 'Arial Narrow', sans-serif";
+      g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text, w / 2, 52);
+      tex.needsUpdate = true;
+    };
+    paint(); labelJobs.push(paint);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, sizeAttenuation: false }));
+    sp.center.set(0.5, 0); sp.scale.set(0.08 * w / 256, 0.03, 1); sp.renderOrder = 10;   // constant size on screen
+    return sp;
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => labelJobs.forEach(f => f()));
+  function checkerTex() {
+    const cv = document.createElement("canvas"); cv.width = cv.height = 64;
+    const g = cv.getContext("2d");
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 6; x++) { g.fillStyle = (x + y) % 2 ? "#111" : "#f4f1e8"; g.fillRect(x * 64 / 6, y * 16, 64 / 6 + 1, 16); }
+    const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding; return t;
+  }
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.3, roughness: 0.5 });
+  function groundRing(x, z, r0, r1, color, opacity) {
+    const seg = 64, v = [], idx = [];
+    for (let i = 0; i <= seg; i++) {
+      const a = i / seg * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+      for (const rr of [r0, r1]) { const px = x + ca * rr, pz = z + sa * rr; v.push(px, groundH(px, pz) + 0.06, pz); }
+      if (i < seg) { const b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx);
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false,
+      side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+    m.renderOrder = 1; return m;
+  }
+  function polePlace(x, z) {                        // a flag spot on the ring, as far from every route as possible
+    let best = [x + 2.6, z], bestGap = -1;
+    for (let k = 0; k < 8; k++) {
+      const a = (k + 0.5) * Math.PI / 4, px = x + Math.cos(a) * 2.6, pz = z + Math.sin(a) * 2.6;
+      const c = Math.round(px + (C - 1) / 2), r = Math.round(pz + (R - 1) / 2);
+      if (c < 0 || r < 0 || c >= C || r >= R || OBS[r * C + c]) continue;
+      let gap = 99;
+      for (const rt of routes) if (rt.found && rt.curve) for (const p of rt.curve.points) gap = Math.min(gap, Math.hypot(p.x - px, p.z - pz));
+      if (gap > bestGap) { bestGap = gap; best = [px, pz]; }
+    }
+    return best;
+  }
+  let flagGroup = null;
+  const flagParts = {};                             // "start" / "finish" → { cell, zone, g }: lets a drag move a flag
+  function placePole(g, cell) {                     // stand a flag on the ring around a cell
+    const x = toX(cell[1]), z = toZ(cell[0]), [px, pz] = polePlace(x, z);
+    g.position.set(px, groundH(px, pz), pz);
+    g.rotation.y = Math.atan2(px - x, pz - z) - Math.PI / 2;
+  }
+  function buildFlags(list) {
+    if (flagGroup) { scene.remove(flagGroup); disposeTree(flagGroup); }
+    flags.length = 0; zoneRings.length = 0; labelJobs.length = 0;
+    for (const k of Object.keys(flagParts)) delete flagParts[k];
+    flagGroup = new THREE.Group();
+    for (const { cell, kind } of list) {
+      const finish = kind === "finish", tone = finish ? 0xf4f1e8 : 0x4fae6a;
+      const zone = groundRing(toX(cell[1]), toZ(cell[0]), 2.2, 2.55, tone, 0.8); zoneRings.push(zone); flagGroup.add(zone);
+      const g = new THREE.Group();
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.4, 8), poleMat);
+      pole.position.y = 1.7; pole.castShadow = true; g.add(pole);
+      const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.95, 6, 1), new THREE.MeshStandardMaterial({
+        color: finish ? 0xffffff : tone, map: finish ? checkerTex() : null, side: THREE.DoubleSide, roughness: 0.8 }));
+      cloth.geometry.translate(0.75, 0, 0);
+      cloth.position.set(0.03, 2.9, 0); cloth.castShadow = true; g.add(cloth);
+      const lab = labelSprite(finish ? "FINISH" : "START", finish ? "#f4f1e8" : "#4fae6a", "#1b1a14");
+      lab.position.y = 3.6; g.add(lab);
+      placePole(g, cell);
+      g.userData.cloth = cloth; g.userData.label = lab;
+      flagGroup.add(g); flags.push(g);
+      flagParts[kind] = { cell: cell.slice(), zone, g };
+    }
+    scene.add(flagGroup);
+  }
+  // a ring that follows the pointer in the planner: where the next START or FINISH would land (red where it can't)
+  const cursorRing = (() => {
+    const seg = 48, rad = [2.2, 2.55], pos = new Float32Array((seg + 1) * 6), idx = [];
+    for (let i = 0; i < seg; i++) { const b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx);
+    const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.9, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.renderOrder = 8; mesh.visible = false; mesh.frustumCulled = false; scene.add(mesh);
+    let at = null;
+    return {
+      show(cell, color) {
+        if (!at || !sameCell(at, cell)) {
+          at = cell.slice();
+          const x = toX(cell[1]), z = toZ(cell[0]);
+          for (let i = 0; i <= seg; i++) {
+            const a = i / seg * Math.PI * 2;
+            rad.forEach((rr, j) => { const px = x + Math.cos(a) * rr, pz = z + Math.sin(a) * rr, k = (i * 2 + j) * 3; pos[k] = px; pos[k + 1] = groundH(px, pz) + 0.1; pos[k + 2] = pz; });
+          }
+          geo.attributes.position.needsUpdate = true;
+        }
+        mat.color.set(color).convertSRGBToLinear(); mesh.visible = true;
+      },
+      hide() { mesh.visible = false; at = null; },
+    };
+  })();
+  const endpointFlags = () => (START ? [{ cell: START, kind: "start" }, { cell: GOAL, kind: "finish" }] : []);
+
+  // ---------------------------------------------------------------- the rover: a rhomboid tank in matte black with a hedgehog coat of steel spikes
+  // Modelled on the British Mark IV/V "male" tank: the tracks run right round each rhomboid side frame (high front
+  // horns, a long sloped nose, a flat top run and a sloped rear), a gun sponson with an angled lower face on each side,
+  // a raised cab with a hatch at the front of the roof, vision ports and riveted plates. Steel spikes cover the top.
+  // Local axes: +z forward, +y up, +x to the tank's left. Sizes in metres: 1.9 m long, 0.93 m wide over the sponsons.
+  function ringTex() {
+    const cv = document.createElement("canvas"); cv.width = cv.height = 256;
+    const g = cv.getContext("2d");
+    g.strokeStyle = "rgba(57, 255, 20, 0.3)"; g.lineWidth = 24; g.beginPath(); g.arc(128, 128, 102, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = "rgba(57, 255, 20, 0.95)"; g.lineWidth = 8; g.beginPath(); g.arc(128, 128, 102, 0, Math.PI * 2); g.stroke();
+    // heading notch: the canvas bottom maps to the rover's front
+    g.fillStyle = "rgba(57, 255, 20, 0.95)";
+    g.beginPath(); g.moveTo(128, 252); g.lineTo(106, 218); g.lineTo(150, 218); g.closePath(); g.fill();
+    const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding; return t;
+  }
+  // A closed belt round circles [z, y, r], listed counter-clockwise as seen from +x: the path of a track round its idlers.
+  // at(s) gives the point and the direction of travel at arc length s; outline() gives the polygon.
+  function belt(circles) {
+    const n = circles.length, runs = [], segs = [];
+    for (let i = 0; i < n; i++) {
+      const [az, ay, ar] = circles[i], [bz, by, br] = circles[(i + 1) % n];
+      const d = Math.hypot(bz - az, by - ay), uz = (bz - az) / d, uy = (by - ay) / d, k = (ar - br) / d, w = Math.sqrt(1 - k * k);
+      const nz = k * uz + w * uy, ny = k * uy - w * uz;           // outward normal of the straight run between the two
+      runs.push({ ang: Math.atan2(ny, nz), a: [az + ar * nz, ay + ar * ny], b: [bz + br * nz, by + br * ny] });
+    }
+    for (let i = 0; i < n; i++) {
+      const [cz, cy, r] = circles[i], a0 = runs[(i + n - 1) % n].ang;
+      let da = runs[i].ang - a0; while (da <= 0) da += Math.PI * 2;
+      segs.push({ cz, cy, r, a0, da, len: r * da });               // round circle i ...
+      const { a, b } = runs[i];
+      segs.push({ a, b, len: Math.hypot(b[0] - a[0], b[1] - a[1]) });   // ... then straight to circle i + 1
+    }
+    const total = segs.reduce((acc, sg) => acc + sg.len, 0);
+    return {
+      total,
+      at(s, out) {                                  // out = [z, y, dz, dy]
+        s = ((s % total) + total) % total;
+        for (let i = 0; i < segs.length; i++) {
+          const sg = segs[i];
+          if (s <= sg.len || i === segs.length - 1) {
+            if (sg.r) {
+              const an = sg.a0 + Math.min(s, sg.len) / sg.r;
+              out[0] = sg.cz + sg.r * Math.cos(an); out[1] = sg.cy + sg.r * Math.sin(an); out[2] = -Math.sin(an); out[3] = Math.cos(an);
+            } else {
+              const L = sg.len || 1, f = Math.min(1, s / L);
+              out[0] = sg.a[0] + (sg.b[0] - sg.a[0]) * f; out[1] = sg.a[1] + (sg.b[1] - sg.a[1]) * f;
+              out[2] = (sg.b[0] - sg.a[0]) / L; out[3] = (sg.b[1] - sg.a[1]) / L;
+            }
+            return out;
+          }
+          s -= sg.len;
+        }
+        return out;
+      },
+      outline() {
+        const pts = [];
+        for (const sg of segs) {
+          if (!sg.r) { pts.push(sg.a.slice()); continue; }
+          const m = Math.max(2, Math.ceil(sg.da / 0.12));
+          for (let j = 0; j < m; j++) { const an = sg.a0 + sg.da * j / m; pts.push([sg.cz + sg.r * Math.cos(an), sg.cy + sg.r * Math.sin(an)]); }
+        }
+        return pts;
+      },
+    };
+  }
+  // a slab with the side profile pts ([z, y] pairs), running across x from x0 to x1
+  function sideSlab(pts, x0, x1) {
+    const geo = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(p => new THREE.Vector2(p[0], p[1]))),
+      { depth: x1 - x0, bevelEnabled: false, curveSegments: 1 });
+    geo.rotateY(-Math.PI / 2); geo.translate(x1, 0, 0);
+    return geo;
+  }
+  // a flat-shaded solid through cross-sections (polygons of [x, y], counter-clockwise seen from the front) placed along z
+  function loft(sections) {
+    const pos = [], P = (sec, i) => [sec.pts[i][0], sec.pts[i][1], sec.z], tri = (a, b, c) => pos.push(...a, ...b, ...c);
+    for (let k = 0; k + 1 < sections.length; k++) {
+      const A = sections[k], B = sections[k + 1], m = A.pts.length;
+      for (let i = 0; i < m; i++) { const j = (i + 1) % m; tri(P(A, i), P(A, j), P(B, j)); tri(P(A, i), P(B, j), P(B, i)); }
+    }
+    const f = sections[0], l = sections[sections.length - 1];
+    for (let i = 1; i + 1 < f.pts.length; i++) { tri(P(f, 0), P(f, i + 1), P(f, i)); tri(P(l, 0), P(l, i), P(l, i + 1)); }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    geo.computeVertexNormals();
+    return geo;
+  }
+  // The steel needs something to reflect: a small cube map of the current map's sky over darker ground, toned down
+  // toward grey so the spikes read as steel. Its mipmaps give the blur for rougher surfaces. Rebuilt with each map.
+  function skyEnvironment(T) {
+    const grey = (c, k) => { const l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return c.lerp(new THREE.Color(l, l, l), k); };
+    const zen = grey(lin(T.sky[0]), 0.7), mid = grey(lin(T.sky[1]), 0.7), hor = grey(lin(T.sky[2]), 0.7).multiplyScalar(1.15),
+          gnd = grey(lin(T.hemi[1]), 0.7).multiplyScalar(0.5), c = new THREE.Color(), N = 64;
+    // direction through pixel (u, v) of each cube face, in the order +x, -x, +y, -y, +z, -z
+    const faces = [(u, v) => [1, -v, -u], (u, v) => [-1, -v, u], (u, v) => [u, 1, v], (u, v) => [u, -1, -v], (u, v) => [u, -v, 1], (u, v) => [-u, -v, -1]];
+    const tex = new THREE.CubeTexture(faces.map(dir => {
+      const cv = document.createElement("canvas"); cv.width = cv.height = N;
+      const g = cv.getContext("2d"), img = g.createImageData(N, N);
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        const [x, y, z] = dir((i + 0.5) / N * 2 - 1, (j + 0.5) / N * 2 - 1), h = y / Math.hypot(x, y, z);   // height of the direction
+        if (h >= 0.45) c.copy(mid).lerp(zen, (h - 0.45) / 0.55);
+        else if (h >= 0) c.copy(hor).lerp(mid, h / 0.45);
+        else c.copy(hor).lerp(gnd, Math.min(1, -h * 5));
+        c.convertLinearToSRGB();
+        img.data.set([c.r * 255, c.g * 255, c.b * 255, 255], (j * N + i) * 4);
+      }
+      g.putImageData(img, 0, 0); return cv;
+    }));
+    tex.encoding = THREE.sRGBEncoding; tex.needsUpdate = true;
+    return tex;
+  }
+  function buildRover() {
+    const g = new THREE.Group();
+    // Everything is matte black paint except the spikes, which are polished steel. Both are physically based.
+    const paint = new THREE.MeshStandardMaterial({ color: lin("#202020"), roughness: 0.84, metalness: 0, envMapIntensity: 0.55 }),
+          deep = new THREE.MeshStandardMaterial({ color: lin("#060606"), roughness: 0.95, metalness: 0 }),    // inside the slits
+          steel = new THREE.MeshStandardMaterial({ color: lin("#d9dde2"), roughness: 0.17, metalness: 1, envMapIntensity: 1.15 });
+    const add = (geo, mat, parent) => { const m = new THREE.Mesh(geo, mat || paint); m.castShadow = true; (parent || g).add(m); return m; };
+    const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
+    const rnd = (() => { let a = 90417; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; })();
+
+    // the track path round the front idler, the rear, and the rear and front ground corners; tread faces sit 0.019 outside it
+    const CIRCLES = [[0.80, 0.40, 0.12], [-0.76, 0.36, 0.16], [-0.42, 0.094, 0.075], [0.24, 0.094, 0.075]];
+    const XI = 0.19, XO = 0.315, TW = 0.13, XT = XI + TW / 2, ROOF = 0.54, CAB = ROOF + 0.115;
+    const track = belt(CIRCLES), frameLine = belt(CIRCLES.map(([z, y, r]) => [z, y, r - 0.010]));
+    const rivetLine = belt(CIRCLES.map(([z, y, r]) => [z, y, r - 0.036])), rivetPoly = rivetLine.outline();
+
+    // side frames (the track runs round their edges), the hull between them, the cab on the roof
+    const frameOutline = frameLine.outline();
+    add(sideSlab(frameOutline, XI, XO)); add(sideSlab(frameOutline, -XO, -XI));
+    add(sideSlab([[0.60, ROOF], [0.60, 0.40], [0.34, 0.12], [-0.50, 0.12], [-0.70, 0.40], [-0.72, ROOF]], -XI, XI));
+    add(box(0.34, CAB - ROOF, 0.48, 0, (ROOF + CAB) / 2, 0.38));
+    add(box(0.15, 0.012, 0.13, 0, CAB + 0.006, 0.43));                                                   // hatch lid
+    add(new THREE.CylinderGeometry(0.008, 0.008, 0.15, 8).rotateZ(Math.PI / 2).translate(0, CAB + 0.008, 0.36));   // its hinge
+    add(box(0.05, 0.01, 0.012, 0, CAB + 0.017, 0.487));                                                  // its handle
+    add(new THREE.SphereGeometry(0.03, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2).translate(0.115, CAB, 0.24));       // domed fitting
+
+    // plates stood off a face: a box whose depth points along the face normal n
+    const Zv = new THREE.Vector3(0, 0, 1);
+    function slab(w, h, d, x, y, z, n, mat) {
+      const m = add(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z);
+      m.quaternion.setFromUnitVectors(Zv, new THREE.Vector3(...n).normalize()); return m;
+    }
+    function port(x, y, z, n, w, hh) {                 // vision port: a raised block with a dark slit
+      const slit = add(new THREE.BoxGeometry(w * 0.72, hh * 0.26, 0.004), deep, slab(w, hh, 0.014, x, y, z, n));
+      slit.position.z = 0.008;
+    }
+    add(box(0.05, 0.012, 0.012, 0.045, 0, 0.009), paint, slab(0.17, 0.15, 0.012, 0, 0.2565, -0.6049, [0, -0.581, -0.814]));   // rear door and handle
+    port(0.085, 0.60, 0.62, [0, 0, 1], 0.075, 0.034); port(-0.085, 0.60, 0.62, [0, 0, 1], 0.075, 0.034);   // cab front
+    const guns = [];
+    [1, -1].forEach(sd => {
+      port(sd * 0.17, 0.60, 0.50, [sd, 0, 0], 0.06, 0.03);              // cab sides
+      port(sd * XO, 0.42, 0.58, [sd, 0, 0], 0.065, 0.032);              // front of the side frame
+      port(sd * XI, 0.40, 0.75, [-sd, 0, 0], 0.06, 0.03);               // inside the front horn
+      [[-0.40, 0.33], [0.42, 0.30]].forEach(([z, y]) =>                 // pistol ports
+        add(new THREE.CylinderGeometry(0.014, 0.016, 0.012, 12).rotateZ(Math.PI / 2).translate(sd * (XO + 0.006), y, z)));
+
+      // sponson: flat top, upright outer face, an angled lower face, the front corner cut off for the gun
+      const sec = k => {
+        const pts = [[0, 0.15], [0.02 * k, 0.15], [0.145 * k, 0.27], [0.145 * k, 0.445], [0, 0.445]].map(([x, y]) => [sd * (XO - 0.002 + x), y]);
+        return sd > 0 ? pts : pts.reverse();
+      };
+      add(loft([{ z: -0.25, pts: sec(1) }, { z: 0.17, pts: sec(1) }, { z: 0.31, pts: sec(0.25) }]));
+      const xp = sd * (XO + 0.147);                                       // raised frame round the side panel
+      add(box(0.008, 0.012, 0.39, xp, 0.425, -0.04)); add(box(0.008, 0.012, 0.39, xp, 0.295, -0.04));
+      add(box(0.008, 0.13, 0.012, xp, 0.36, -0.229)); add(box(0.008, 0.13, 0.012, xp, 0.36, 0.149));
+      // short gun in a ball mount on the cut-off corner; it traverses toward the next bend
+      const pivot = new THREE.Group(); pivot.position.set(sd * (XO + 0.09), 0.36, 0.24);
+      pivot.userData.base = sd * 0.62; pivot.rotation.y = pivot.userData.base; g.add(pivot);
+      add(new THREE.SphereGeometry(0.052, 16, 10).scale(1, 1, 0.6), paint, pivot);
+      add(new THREE.CylinderGeometry(0.021, 0.024, 0.25, 16).rotateX(Math.PI / 2).translate(0, 0, 0.135), paint, pivot);
+      add(new THREE.CylinderGeometry(0.026, 0.026, 0.022, 16).rotateX(Math.PI / 2).translate(0, 0, 0.25), paint, pivot);
+      guns.push(pivot);
+    });
+
+    // rivets: rows along the plate edges and seams
+    const rv = [];
+    const row = (a, b, step, n) => {
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), k = Math.max(1, Math.round(len / step));
+      for (let i = 0; i <= k; i++) { const f = i / k; rv.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f, ...n]); }
+    };
+    const spanAt = (poly, z) => {                    // lowest and highest y of a polygon at z
+      let lo = Infinity, hi = -Infinity;
+      for (let i = 0; i < poly.length; i++) {
+        const [z0, y0] = poly[i], [z1, y1] = poly[(i + 1) % poly.length];
+        if (z0 !== z1 && (z0 - z) * (z1 - z) <= 0) { const y = y0 + (y1 - y0) * (z - z0) / (z1 - z0); lo = Math.min(lo, y); hi = Math.max(hi, y); }
+      }
+      return [lo, hi];
+    };
+    const o4 = [0, 0, 0, 0], behindSponson = (z, y) => z > -0.27 && z < 0.33 && y > 0.13 && y < 0.46;
+    [1, -1].forEach(sd => {
+      const xf = sd * (XO + 0.001), xs = sd * (XO + 0.146);
+      for (let s = 0; s < rivetLine.total; s += 0.034) {
+        rivetLine.at(s, o4); if (!behindSponson(o4[0], o4[1])) rv.push([xf, o4[1], o4[0], sd, 0, 0]);
+      }
+      [-0.47, 0.47].forEach(z => { const [lo, hi] = spanAt(rivetPoly, z); row([xf, lo + 0.034, z], [xf, hi - 0.034, z], 0.034, [sd, 0, 0]); });
+      row([xs, 0.437, -0.245], [xs, 0.437, 0.165], 0.034, [sd, 0, 0]);            // sponson side, top edge
+      row([xs, 0.278, -0.245], [xs, 0.278, 0.165], 0.034, [sd, 0, 0]);            // bottom edge
+      row([xs, 0.312, -0.245], [xs, 0.403, -0.245], 0.034, [sd, 0, 0]);           // rear edge
+      const cn = [sd * 0.14, 0, 0.109];                                              // the cut-off corner
+      row([sd * (XO + 0.14), 0.437, 0.176], [sd * (XO + 0.042), 0.437, 0.304], 0.034, cn);
+      row([sd * (XO + 0.14), 0.278, 0.176], [sd * (XO + 0.042), 0.278, 0.304], 0.034, cn);
+      row([sd * 0.1715, CAB - 0.012, 0.155], [sd * 0.1715, CAB - 0.012, 0.605], 0.034, [sd, 0, 0]);   // cab side, top edge
+      row([sd * 0.158, ROOF + 0.012, 0.6205], [sd * 0.158, CAB - 0.012, 0.6205], 0.034, [0, 0, 1]);    // cab front corners
+    });
+    row([-0.155, CAB - 0.012, 0.6205], [0.155, CAB - 0.012, 0.6205], 0.034, [0, 0, 1]);              // cab front, top edge
+    row([-0.155, ROOF + 0.012, 0.6205], [0.155, ROOF + 0.012, 0.6205], 0.034, [0, 0, 1]);            // and bottom edge
+    row([-0.165, 0.47, 0.6005], [0.165, 0.47, 0.6005], 0.034, [0, 0, 1]);                            // hull front plate
+    [0.2, 0.8].forEach(f => { const z = 0.60 - 0.26 * f, y = 0.40 - 0.28 * f; row([-0.165, y, z + 0.001], [0.165, y, z + 0.001], 0.034, [0, -0.26, 0.28]); });
+    [0.525, 0.415].forEach(y => row([-0.165, y, -0.7215 + (0.54 - y) / 0.14 * 0.02], [0.165, y, -0.7215 + (0.54 - y) / 0.14 * 0.02], 0.034, [0, -0.02, -0.14]));
+    [0.15, 0.85].forEach(f => { const z = -0.50 - 0.2 * f, y = 0.12 + 0.28 * f; row([-0.165, y, z - 0.001], [0.165, y, z - 0.001], 0.034, [0, -0.2, -0.28]); });
+    const rivets = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 7, 3, 0, Math.PI * 2, 0, Math.PI / 2), paint, rv.length);
+    const Yv = new THREE.Vector3(0, 1, 0), nv = new THREE.Vector3(), pv = new THREE.Vector3(), sv = new THREE.Vector3(), qv = new THREE.Quaternion(), M4 = new THREE.Matrix4();
+    rv.forEach((r, i) => {
+      qv.setFromUnitVectors(Yv, nv.set(r[3], r[4], r[5]).normalize());
+      rivets.setMatrixAt(i, M4.compose(pv.set(r[0], r[1], r[2]), qv, sv.set(0.0068, 0.005, 0.0068)));
+    });
+    rivets.frustumCulled = false; g.add(rivets);
+
+    // hedgehog spikes over the top: the roof and the cab. Each leans back like a quill and fans out toward the sides.
+    const quills = [];
+    function patch(x0, x1, z0, z1, y, gap, fan, len, skip) {
+      const cx = (x0 + x1) / 2, hw = (x1 - x0) / 2;
+      for (let z = z0 + gap * 0.4, rowN = 0; z <= z1 - gap * 0.3; z += gap * 0.866, rowN++) {
+        for (let x = x0 + gap * (rowN % 2 ? 0.75 : 0.25); x <= x1 - gap * 0.2; x += gap) {
+          const px = x + (rnd() - 0.5) * gap * 0.45, pz = z + (rnd() - 0.5) * gap * 0.45;
+          if (skip && skip(px, pz)) continue;
+          const u = (px - cx) / hw;                       // -1 … 1 across the patch
+          quills.push({ p: new THREE.Vector3(px, y - 0.002, pz),
+            d: new THREE.Vector3(u * fan + (rnd() - 0.5) * 0.5, 1, -0.36 + (rnd() - 0.5) * 0.5).normalize(),
+            len: (len[0] + rnd() * (len[1] - len[0])) * (1 - 0.1 * u * u), r: 0.016 + rnd() * 0.004 });
+        }
+      }
+    }
+    patch(-XI + 0.014, XI - 0.014, -0.70, 0.12, ROOF, 0.04, 1.2, [0.13, 0.19]);
+    patch(-0.155, 0.155, 0.15, 0.61, CAB, 0.04, 1.0, [0.12, 0.17],
+      (x, z) => (Math.abs(x) < 0.095 && Math.abs(z - 0.43) < 0.085) || Math.hypot(x - 0.115, z - 0.24) < 0.045);
+    const spikeGeo = new THREE.LatheGeometry([[0, 0], [1.3, 0], [1.3, 0.03], [1, 0.05], [0, 1]].map(([r, h]) => new THREE.Vector2(r, h)), 10);
+    const spikes = new THREE.InstancedMesh(spikeGeo, steel, quills.length);
+    quills.forEach((q, i) => spikes.setMatrixAt(i, M4.compose(q.p, qv.setFromUnitVectors(Yv, q.d), sv.set(q.r, q.len, q.r))));
+    spikes.castShadow = true; spikes.frustumCulled = false; g.add(spikes);
+
+    // track plates with a raised grouser at each end, carried round the path as the tank drives
+    const nPlates = Math.round(track.total / 0.075), pitch = track.total / nPlates, h = pitch * 0.44;
+    const plateGeo = sideSlab([[-h, 0.007], [-h, -0.019], [-h + 0.011, -0.019], [-h + 0.011, -0.007], [h - 0.011, -0.007],
+      [h - 0.011, -0.019], [h, -0.019], [h, 0.007]], -TW / 2, TW / 2);        // local +y points into the frame
+    const plates = new THREE.InstancedMesh(plateGeo, paint, nPlates * 2);
+    plates.castShadow = true; plates.frustumCulled = false; g.add(plates);
+    let travel = 0, gunYaw = 0;
+    function placePlates() {
+      for (let i = 0; i < nPlates; i++) {
+        track.at(i * pitch - travel, o4);
+        M4.makeRotationX(Math.atan2(-o4[3], o4[2])); M4.elements[13] = o4[1]; M4.elements[14] = o4[0];
+        M4.elements[12] = XT; plates.setMatrixAt(i, M4);
+        M4.elements[12] = -XT; plates.setMatrixAt(i + nPlates, M4);
+      }
+      plates.instanceMatrix.needsUpdate = true;
+    }
+    placePlates();
+
+    let env = null;
+    return {
+      group: g,
+      track: { x: XT, width: TW, rear: -0.45 },        // where the treads meet the ground (dust and tread marks)
+      setSky(T) {
+        try {
+          const tex = skyEnvironment(T);
+          if (env) env.dispose();
+          env = tex; paint.envMap = steel.envMap = tex; paint.needsUpdate = steel.needsUpdate = true;
+        } catch (e) { /* without the sky map the steel still catches the sun */ }
+      },
+      animate(t, v, dt, lookYaw, finishing) {
+        if (v > 0) { travel += v * dt; placePlates(); }
+        // the guns swing toward the next bend; at the finish they sweep from side to side
+        const want = finishing ? Math.sin(t * 1.7) * 0.35 : clamp(lookYaw, -1, 1) * 0.35;
+        gunYaw += (want - gunYaw) * (1 - Math.exp(-dt * 3));
+        for (const p of guns) p.rotation.y = p.userData.base + gunYaw;
+      }
+    };
+  }
+  const rover = buildRover(); scene.add(rover.group);
+  const ringGeo = new THREE.PlaneGeometry(3.3, 3.3, 12, 12);      // the heading ring round the tank
+  const ringBase = ringGeo.attributes.position.array.slice();
+  const ringMat = new THREE.MeshBasicMaterial({ map: ringTex(), transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+  const roverRing = new THREE.Mesh(ringGeo, ringMat);
+  roverRing.frustumCulled = false; roverRing.renderOrder = 2; scene.add(roverRing);
+  function drapeRing(cx, cz, k) {                  // heading ring re-draped over the terrain every frame
+    const a = ringGeo.attributes.position.array;
+    for (let i = 0; i < a.length; i += 3) {
+      const lat = ringBase[i] * k, fore = -ringBase[i + 1] * k;
+      const x = cx + rightH.x * lat + fwd.x * fore, z = cz + rightH.z * lat + fwd.z * fore;
+      a[i] = x; a[i + 1] = groundH(x, z) + 0.07; a[i + 2] = z;
+    }
+    ringGeo.attributes.position.needsUpdate = true;
+  }
+
+  // ---------------------------------------------------------------- tread marks left on the ground
+  function makeMarks(maxPts) {
+    const verts = new Float32Array(maxPts * 12);
+    const g = new THREE.BufferGeometry();
+    const attr = new THREE.BufferAttribute(verts, 3).setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute("position", attr);
+    const idx = new Uint16Array((maxPts - 1) * 12);
+    for (let i = 0; i < maxPts - 1; i++) {
+      const a = 4 * i, b = a + 4;
+      idx.set([a, b, a + 1, a + 1, b, b + 1, a + 2, b + 2, a + 3, a + 3, b + 2, b + 3], i * 12);
+    }
+    g.setIndex(new THREE.BufferAttribute(idx, 1));
+    g.setDrawRange(0, 0);
+    const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x3a2b1d, transparent: true, opacity: 0.45,
+      depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 }));
+    mesh.frustumCulled = false; mesh.renderOrder = 1;
+    let n = 0;
+    const put = (k, x, z) => { verts[k] = x; verts[k + 1] = groundH(x, z) + 0.035; verts[k + 2] = z; };
+    return {
+      mesh,
+      add(lx, lz, rx, rz, ox, oz) {
+        if (n >= maxPts) return;
+        const k = n * 12;
+        put(k, lx - ox, lz - oz); put(k + 3, lx + ox, lz + oz); put(k + 6, rx - ox, rz - oz); put(k + 9, rx + ox, rz + oz);
+        n++; attr.needsUpdate = true;
+        g.setDrawRange(0, Math.max(0, n - 1) * 12);
+      },
+      clear() { n = 0; g.setDrawRange(0, 0); }
+    };
+  }
+  const marks = makeMarks(1600); scene.add(marks.mesh);
+
+  // ---------------------------------------------------------------- dust and mud kicked up by the treads
+  function makeDust(max) {
+    const p = new Float32Array(max * 3), col = new Float32Array(max * 3), size = new Float32Array(max), alpha = new Float32Array(max);
+    const vel = new Float32Array(max * 3), life = new Float32Array(max), maxLife = new Float32Array(max),
+          grow = new Float32Array(max), a0 = new Float32Array(max), grav = new Float32Array(max);
+    const g = new THREE.BufferGeometry();
+    const A = (arr, k) => new THREE.BufferAttribute(arr, k).setUsage(THREE.DynamicDrawUsage);
+    const aPos = A(p, 3), aCol = A(col, 3), aSize = A(size, 1), aAlpha = A(alpha, 1);
+    g.setAttribute("position", aPos); g.setAttribute("aColor", aCol); g.setAttribute("aSize", aSize); g.setAttribute("aAlpha", aAlpha);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uScale: { value: 500 } },
+      vertexShader: [
+        "attribute vec3 aColor; attribute float aSize; attribute float aAlpha;",
+        "uniform float uScale; varying vec3 vColor; varying float vAlpha;",
+        "void main() {",
+        "  vColor = aColor; vAlpha = aAlpha;",
+        "  vec4 mv = modelViewMatrix * vec4(position, 1.0);",
+        "  gl_PointSize = aSize * uScale / max(0.2, -mv.z);",
+        "  gl_Position = projectionMatrix * mv;",
+        "}"].join("\n"),
+      fragmentShader: [
+        "varying vec3 vColor; varying float vAlpha;",
+        "void main() {",
+        "  float d = length(gl_PointCoord - vec2(0.5));",
+        "  if (d > 0.5 || vAlpha <= 0.0) discard;",
+        "  gl_FragColor = vec4(vColor, vAlpha * (1.0 - smoothstep(0.15, 0.5, d)));",
+        "}"].join("\n"),
+      transparent: true, depthWrite: false
+    });
+    const obj = new THREE.Points(g, mat); obj.frustumCulled = false; obj.renderOrder = 3;
+    let headI = 0;
+    return {
+      obj, mat,
+      emit(x, y, z, vx, vy, vz, c, s0, gr, l, a, gv) {
+        const i = headI; headI = (headI + 1) % max; const j = i * 3;
+        p[j] = x; p[j + 1] = y; p[j + 2] = z; vel[j] = vx; vel[j + 1] = vy; vel[j + 2] = vz;
+        col[j] = c[0]; col[j + 1] = c[1]; col[j + 2] = c[2];
+        size[i] = s0; grow[i] = gr; life[i] = maxLife[i] = l; a0[i] = alpha[i] = a; grav[i] = gv;
+        aCol.needsUpdate = true;
+      },
+      update(dt) {
+        const drag = Math.exp(-dt * 1.6);
+        for (let i = 0; i < max; i++) {
+          if (life[i] <= 0) continue;
+          life[i] -= dt;
+          if (life[i] <= 0) { alpha[i] = 0; size[i] = 0; continue; }
+          const j = i * 3;
+          vel[j + 1] -= grav[i] * dt;
+          vel[j] *= drag; vel[j + 2] *= drag;
+          if (grav[i] < 1) vel[j + 1] *= drag;
+          p[j] += vel[j] * dt; p[j + 1] += vel[j + 1] * dt; p[j + 2] += vel[j + 2] * dt;
+          const gh = groundH(p[j], p[j + 2]) + 0.03;
+          if (p[j + 1] < gh) { p[j + 1] = gh; vel[j] = vel[j + 1] = vel[j + 2] = 0; }
+          size[i] += grow[i] * dt;
+          alpha[i] = a0[i] * Math.min(1, (life[i] / maxLife[i]) * 1.8);
+        }
+        aPos.needsUpdate = aSize.needsUpdate = aAlpha.needsUpdate = true;
+      },
+      clear() { life.fill(0); alpha.fill(0); size.fill(0); aAlpha.needsUpdate = aSize.needsUpdate = true; }
+    };
+  }
+  const dust = makeDust(360); scene.add(dust.obj);
+
+  // ---------------------------------------------------------------- course map (minimap)
+  const baseCv = document.createElement("canvas");
+  function paintBase() {
+    baseCv.width = C; baseCv.height = R;
+    const bctx = baseCv.getContext("2d"), img = bctx.createImageData(C, R), d = img.data;
+    const L = new THREE.Vector3(-1, 1.7, -1).normalize(), n = new THREE.Vector3();
+    const rockC = hex(THEME.rock), treeC = hex(THEME.leaf).map(v => v * 0.75);
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+      const i = r * C + c;
+      const gx = (hAt(r, Math.min(c + 1, C - 1)) - hAt(r, Math.max(c - 1, 0))) / 2;
+      const gz = (hAt(Math.min(r + 1, R - 1), c) - hAt(Math.max(r - 1, 0), c)) / 2;
+      n.set(-gx, 1, -gz).normalize();
+      const water = OBS[i] === 3;
+      const shade = water ? 1 : 0.6 + 0.55 * Math.max(0, n.dot(L));
+      const col = water ? mix(PAL.water, [0.1, 0.4, 0.55], clamp((MAP.sea - H[i]) / 3, 0, 1) * 0.5)
+        : OBS[i] === 2 ? treeC : OBS[i] === 1 ? rockC : groundRGB(i);
+      d[i * 4] = Math.min(255, col[0] * 255 * shade); d[i * 4 + 1] = Math.min(255, col[1] * 255 * shade);
+      d[i * 4 + 2] = Math.min(255, col[2] * 255 * shade); d[i * 4 + 3] = 255;
+    }
+    bctx.putImageData(img, 0, 0);
+  }
+  const mm = $("minimap"), mctx = mm.getContext("2d");
+  const layerCv = document.createElement("canvas"), lctx = layerCv.getContext("2d");
+  const MMS = 200;
+  let mdpr = 1;
+  const toMap = (x, z) => [(x + (C - 1) / 2 + 0.5) * MMS / C, (z + (R - 1) / 2 + 0.5) * MMS / R];
+  function sizeMinimap() {
+    mdpr = Math.min(2, window.devicePixelRatio || 1);
+    mm.width = layerCv.width = Math.round(MMS * mdpr);
+    mm.height = layerCv.height = Math.round(MMS * mdpr);
+  }
+  function drawMapLayer() {
+    const g = lctx;
+    g.setTransform(mdpr, 0, 0, mdpr, 0, 0);
+    g.clearRect(0, 0, MMS, MMS);
+    g.imageSmoothingEnabled = true;
+    g.drawImage(baseCv, 0, 0, MMS, MMS);
+    g.lineJoin = g.lineCap = "round";
+    const driven = drivenPreset();
+    for (const i of [...extraOn].sort((a, b) => (a === driven) - (b === driven))) {   // added paths; the driven one on top
+      const p = MAP.presets[i];
+      g.beginPath();
+      for (let k = 0; k < p.path.length; k += 2) {
+        const x = (p.path[k + 1] + 0.5) * MMS / C, y = (p.path[k] + 0.5) * MMS / R;
+        if (k) g.lineTo(x, y); else g.moveTo(x, y);
+      }
+      g.globalAlpha = i === driven ? 1 : 0.85; g.lineWidth = i === driven ? 2.6 : 1.4;
+      g.strokeStyle = PATH_COLORS[i % PATH_COLORS.length]; g.stroke();
+    }
+    g.globalAlpha = 1;
+    const shown = routes.filter(r => r.found && routeShown(r)).sort((a, b) => (a === current) - (b === current));
+    for (const rt of shown) {
+      g.beginPath();
+      rt.cells.forEach(([r, c], k) => { const x = (c + 0.5) * MMS / C, y = (r + 0.5) * MMS / R; if (k) g.lineTo(x, y); else g.moveTo(x, y); });
+      const sel = rt === current;
+      g.setLineDash(rt.dashed ? [3, 2.5] : []);
+      g.globalAlpha = sel || rt.dashed ? 1 : 0.55; g.lineWidth = sel ? 2.4 : rt.dashed ? 1.6 : 1.2; g.strokeStyle = rt.color; g.stroke();
+    }
+    g.setLineDash([]);
+    g.globalAlpha = 1;
+    if (!START) return;                             // parked: no start or finish
+    [[START, "#4fae6a"], [GOAL, "#f4f1e8"]].forEach(([[r, c], fill]) => {
+      g.beginPath(); g.arc((c + 0.5) * MMS / C, (r + 0.5) * MMS / R, 4.2, 0, Math.PI * 2);
+      g.fillStyle = fill; g.fill(); g.lineWidth = 1.5; g.strokeStyle = "#1b1f19"; g.stroke();
+    });
+  }
+  function drawMinimap(Pw) {
+    const g = mctx;
+    g.setTransform(mdpr, 0, 0, mdpr, 0, 0);
+    g.clearRect(0, 0, MMS, MMS);
+    g.drawImage(layerCv, 0, 0, MMS, MMS);
+    const [rx, ry] = toMap(Pw.x, Pw.z), [dx, dy] = toMap(camera.position.x, camera.position.z);
+    if (dx > -4 && dx < MMS + 4 && dy > -4 && dy < MMS + 4 && Math.hypot(dx - rx, dy - ry) > 3) {
+      g.setLineDash([3, 3]); g.lineWidth = 1; g.strokeStyle = "rgba(244, 241, 232, 0.75)";
+      g.beginPath(); g.moveTo(dx, dy); g.lineTo(rx, ry); g.stroke(); g.setLineDash([]);
+      g.fillStyle = "#f4f1e8";
+      g.beginPath(); g.moveTo(dx, dy - 4.5); g.lineTo(dx + 4.5, dy); g.lineTo(dx, dy + 4.5); g.lineTo(dx - 4.5, dy); g.closePath(); g.fill();
+    }
+    g.save(); g.translate(rx, ry); g.rotate(Math.atan2(fwd.x, -fwd.z));
+    g.beginPath(); g.moveTo(0, -7); g.lineTo(5.5, 5.5); g.lineTo(0, 2.5); g.lineTo(-5.5, 5.5); g.closePath();
+    g.fillStyle = NEON_CSS; g.fill(); g.lineWidth = 1.5; g.strokeStyle = "#1b1f19"; g.stroke();
+    g.restore();
+  }
+
+  // ---------------------------------------------------------------- stage board
+  const rowsEl = $("rows");
+  const fmtDelta = d => (d === null ? "no route" : d < 0.05 ? "best" : "+" + d.toFixed(d < 10 ? 1 : 0) + "%");
+  function renderBoard() {
+    $("board-empty").hidden = !parked;              // parked: nothing to race yet
+    $("board-table").hidden = $("board-toggles").hidden = parked;
+    if (parked) { rowsEl.textContent = ""; $("board-save").hidden = true; $("sum-pick").textContent = "No route"; return []; }
+    const best = Math.min(...routes.filter(r => r.found).map(r => r.cost));
+    const key = r => (r.found ? Math.round(r.cost * 1e6) : 1e18);      // ties go to the planners, then the shortest route
+    const ranked = [...routes].sort((a, b) => (key(a) - key(b)) || ((a.user ? 1 : 0) - (b.user ? 1 : 0))
+      || ((a.key === "short" ? 1 : 0) - (b.key === "short" ? 1 : 0)) || ((a.nodes || 0) - (b.nodes || 0)));
+    rowsEl.textContent = "";
+    ranked.forEach((rt, i) => {
+      const tr = document.createElement("tr");
+      tr.dataset.name = rt.name;
+      if (rt.user) tr.className = "mine";
+      const d = rt.found ? (rt.cost - best) / best * 100 : null;
+      tr.innerHTML = `<td><span class="alg"><span class="pos">${i + 1}</span><span class="swatch${rt.dashed ? " dashed" : ""}" style="background:${rt.color};color:${rt.color}"></span>${rt.name}</span></td>
+        <td>${rt.found ? fmtTime(rt.cost) : "—"} <span class="delta ${d !== null && d < 0.05 ? "best" : ""}">${fmtDelta(d)}</span></td>
+        <td>${rt.found ? rt.stats.distance_m.toFixed(0) : "—"}</td><td class="hide-sm">${rt.found ? rt.stats.climb_m.toFixed(0) : "—"}</td>
+        <td>${rt.user ? "—" : rt.nodes.toLocaleString()}</td><td class="hide-sm">${rt.user ? "—" : rt.ms.toFixed(rt.ms < 10 ? 1 : 0)}</td>`;
+      if (rt.found) {
+        tr.tabIndex = 0;
+        tr.addEventListener("click", () => select(rt.name, true));
+        tr.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); select(rt.name, true); } });
+      }
+      rowsEl.appendChild(tr);
+    });
+    if (current) markSelected(current.name);
+    $("t-copy").hidden = !routes.some(r => r.user);
+    renderSaving();
+    return ranked;
+  }
+  const bestPlanner = ranked => ranked.find(r => r.found && r.key !== "short") || ranked[0];
+  function renderSaving() {                         // the demo in one line: reading the hills beats the shortest route
+    const el = $("board-save"), short = routes.find(r => r.key === "short" && r.found);
+    const quick = routes.filter(r => r.found && !r.user && r.key !== "short").map(r => r.cost);
+    if (parked || !short || !quick.length) { el.hidden = true; return; }
+    const best = Math.min(...quick), saved = short.cost - best;
+    el.hidden = false;
+    el.innerHTML = saved >= 0.5
+      ? `Reading the hills: <b>${fmtTime(best)}</b> instead of ${fmtTime(short.cost)} on the shortest route, <b>${saved < 59.5 ? `${Math.round(saved)} s` : fmtTime(saved)}</b> saved.`
+      : `Here the shortest route is already the quickest: ${fmtTime(best)}.`;
+  }
+  function markSelected(name) {
+    rowsEl.querySelectorAll("tr").forEach(tr => tr.setAttribute("aria-selected", String(tr.dataset.name === name)));
+  }
+
+  // ---------------------------------------------------------------- state and cameras
+  const fwd = new THREE.Vector3(0, 0, 1), rightH = new THREE.Vector3(1, 0, 0), up = new THREE.Vector3(),
+        f2 = new THREE.Vector3(), xr = new THREE.Vector3(), basis = new THREE.Matrix4(), targetQ = new THREE.Quaternion(),
+        P = new THREE.Vector3(), T = new THREE.Vector3(), tmpV = new THREE.Vector3(), lookP = new THREE.Vector3(),
+        headS = new THREE.Vector3(0, 0, 1), followP = new THREE.Vector3(), prevFollow = new THREE.Vector3(),
+        delta = new THREE.Vector3(), off = new THREE.Vector3(), sph = new THREE.Spherical(), sphV = new THREE.Vector3(),
+        endPos = new THREE.Vector3(), endTarget = new THREE.Vector3(), bob = new THREE.Vector3();
+  let simT = 0, playing = true, finishT = 0, markS = 0, snap = true, showAll = false, showShort = true, showSearch = false;
+  let mode = "course", fly = null, userDown = false, lastUser = -1e9;
+  // No route yet: the rover waits on open ground near the middle of the map (a stand-in "route" that goes nowhere).
+  let parked = true, home = [0, 0];
+  const PARK = { park: true, name: "", cost: 0, len: 0.5, curve: null, tAt: [0], sAt: [0], segs: 1, tube: null };
+  const speedEl = $("speed");
+  const G = { alg: $("g-alg"), time: $("g-time"), dist: $("g-dist"), elev: $("g-elev"), grade: $("g-grade"), surf: $("g-surf"),
+              bar: $("bar"), alt: $("d-alt"), hdg: $("d-hdg"), label: $("d-label") };
+  const MODES = {
+    drone:  { label: "Drone cam",     dist: 19,  phi: 0.66,   minD: 6,  maxD: 70,  minP: 0.05, maxP: 1.2,   rotate: true,  follow: true,  yawRate: 0.45 },
+    top:    { label: "Top-down",      dist: 34,  phi: 0.0006, minD: 10, maxD: 110, minP: 0,    maxP: 0.001, rotate: false, follow: true,  yawRate: 0, theta: 0 },
+    chase:  { label: "Chase cam",     dist: 8,   phi: 1.18,   minD: 4,  maxD: 22,  minP: 0.5,  maxP: 1.4,   rotate: true,  follow: true,  yawRate: 2.4 },
+    course: { label: "Overview",      dist: 120, phi: 0.95,   minD: 20, maxD: 240, minP: 0.05, maxP: 1.45,  rotate: true,  follow: false, yawRate: 0, theta: -0.57 },
+    plan:   { label: "Route planner", dist: 0,   phi: 0.0006, minD: 12, maxD: 400, minP: 0,    maxP: 0.001, rotate: false, follow: false, yawRate: 0, theta: 0, pan: true, fit: true },
+  };
+  let planView = null;
+  function computePlanView() {                      // fit the whole map into the space the panels leave free
+    const vw = innerWidth, vh = innerHeight, board = $("board");
+    const top = $("title-board").getBoundingClientRect().bottom + 10;
+    const bottom = (PB.bar.hidden ? vh - 16 : PB.bar.getBoundingClientRect().top) - 10;
+    const right = !board.hidden && !narrow() ? board.getBoundingClientRect().left - 12 : vw - 16, left = 16;
+    const wpp = Math.max(C / (Math.max(120, right - left) * 0.92), R / (Math.max(120, bottom - top) * 0.92));
+    return { dist: wpp * vh / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)),
+             tx: (vw / 2 - (left + right) / 2) * wpp, tz: (vh / 2 - (top + bottom) / 2) * wpp };
+  }
+  // Overview framing: zoom and shift the picture (not the camera) so the whole map block sits in the free space.
+  const fitCam = new THREE.PerspectiveCamera(), fitP = new THREE.Vector3(), fitT = new THREE.Vector3();
+  let viewFit = null;                               // the overview's {s, x, y}; other views use the plain picture
+  const viewNow = { s: 1, x: 0, y: 0 };
+  const polyArea = p => { let a = 0; for (let i = 0; i < p.length; i++) { const q = p[i], w = p[(i + 1) % p.length]; a += q[0] * w[1] - w[0] * q[1]; } return Math.abs(a) / 2; };
+  function clipArea(poly, l, t, r, b) {             // area of a convex polygon inside a rectangle (Sutherland–Hodgman)
+    let out = poly;
+    for (const [ax, lim, above] of [[0, l, true], [0, r, false], [1, t, true], [1, b, false]]) {
+      const inp = out; out = [];
+      for (let i = 0; i < inp.length; i++) {
+        const a = inp[i], c = inp[(i + 1) % inp.length], ain = above ? a[ax] >= lim : a[ax] <= lim, cin = above ? c[ax] >= lim : c[ax] <= lim;
+        if (ain) out.push(a);
+        if (ain !== cin) { const k = (lim - a[ax]) / (c[ax] - a[ax]); out.push([a[0] + (c[0] - a[0]) * k, a[1] + (c[1] - a[1]) * k]); }
+      }
+      if (out.length < 3) return 0;
+    }
+    return polyArea(out);
+  }
+  function hull(pts) {                              // convex hull (monotone chain)
+    const s = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]), lo = [], up = [];
+    const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    for (const p of s) { while (lo.length > 1 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+    for (const p of s.reverse()) { while (up.length > 1 && cross(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+    return lo.slice(0, -1).concat(up.slice(0, -1));
+  }
+  function computeOverviewFit() {                   // the biggest, most central placement where the map clears the panels
+    const W = innerWidth, H = innerHeight, m = 8;
+    fitCam.copy(camera); fitCam.clearViewOffset();  // where the map block sits in the plain overview picture
+    rigPose(MODES.course, fitP, fitT);
+    fitCam.position.copy(fitP); fitCam.up.set(0, 1, 0); fitCam.lookAt(fitT); fitCam.updateMatrixWorld();
+    let r0 = R, r1 = 0, c0 = C, c1 = 0;              // frame the land (an island's sea is only backdrop)
+    for (let i = 0; i < OBS.length; i++) if (OBS[i] !== 3) { const r = (i / C) | 0, c = i - r * C; r0 = Math.min(r0, r); r1 = Math.max(r1, r); c0 = Math.min(c0, c); c1 = Math.max(c1, c); }
+    const pts = [], low = MAP.sea != null ? MAP.sea : hMin - 3;
+    for (const [r, c] of [[r0, c0], [r0, c1], [r1, c0], [r1, c1]]) for (const y of [low, hMax]) {
+      tmpV.set(toX(c), y, toZ(r)).project(fitCam); pts.push([(tmpV.x + 1) / 2 * W, (1 - tmpV.y) / 2 * H]);
+    }
+    const shape = hull(pts), area = polyArea(shape);
+    const cx0 = (Math.min(...pts.map(p => p[0])) + Math.max(...pts.map(p => p[0]))) / 2;
+    const cy0 = (Math.min(...pts.map(p => p[1])) + Math.max(...pts.map(p => p[1]))) / 2;
+    const blocks = [[-1e4, -1e4, m, 1e4], [W - m, -1e4, 1e4, 1e4], [-1e4, -1e4, 1e4, m], [-1e4, H - m, 1e4, 1e4]];   // screen edges
+    for (const id of ["title-board", "board", "drone", "paths", "tele", "planbar"]) {        // every panel on show
+      const el = $(id), r = el.getBoundingClientRect();                                     // (a phone's path list is a
+      if (!el.hidden && r.width && !(id === "paths" && narrow())) blocks.push([r.left - m, r.top - m, r.right + m, r.bottom + m]);   // brief overlay)
+    }
+    const place = (s, strict) => {                  // best spot at scale s: under 3% hidden, then nearest the middle
+      const room = strict ? area * s * s * 0.03 : Infinity;
+      let best = null;
+      for (let cy = 0; cy <= H; cy += 16) for (let cx = 0; cx <= W; cx += 16) {
+        const poly = shape.map(p => [(p[0] - cx0) * s + cx, (p[1] - cy0) * s + cy]);
+        let hit = 0;
+        for (const [l, t, r, b] of blocks) { hit += clipArea(poly, l, t, r, b); if (hit > room) break; }
+        if (hit > room) continue;
+        const score = hit / (area * s * s) + 0.02 * Math.hypot(cx - W / 2, cy - H / 2) / Math.hypot(W, H);
+        if (!best || score < best.score) best = { score, cx, cy };
+      }
+      return best;
+    };
+    let lo = 0.15, hi = 1.3, spot = place(lo, true);
+    if (!spot) { lo = 0.6; spot = place(lo, false); }   // no room anywhere (a phone with the board open): hide the least
+    else for (let k = 0; k < 7; k++) { const mid = (lo + hi) / 2, p = place(mid, true); if (p) { lo = mid; spot = p; } else hi = mid; }
+    return { s: lo, x: cx0 - spot.cx / lo, y: cy0 - spot.cy / lo };
+  }
+  function easeView(dt) {                           // glide the picture between the overview framing and the plain view
+    const want = mode === "course" && viewFit ? viewFit : { s: 1, x: 0, y: 0 }, k = dt < 0 ? 1 : 1 - Math.exp(-dt * 5);
+    viewNow.s += (want.s - viewNow.s) * k; viewNow.x += (want.x - viewNow.x) * k; viewNow.y += (want.y - viewNow.y) * k;
+    if (Math.abs(viewNow.s - 1) < 1e-4 && Math.abs(viewNow.x) < 0.05 && Math.abs(viewNow.y) < 0.05) {
+      if (camera.view && camera.view.enabled) camera.clearViewOffset();
+    } else camera.setViewOffset(innerWidth, innerHeight, viewNow.x, viewNow.y, innerWidth / viewNow.s, innerHeight / viewNow.s);
+  }
+  function rigPose(M, outPos, outTarget) {
+    const theta = M.theta !== undefined ? M.theta : Math.atan2(-headS.x, -headS.z);
+    if (M.fit) {
+      const pv = planView || computePlanView();
+      outTarget.set(courseCenter.x + pv.tx, courseCenter.y, courseCenter.z + pv.tz);
+      outPos.copy(outTarget).add(sphV.setFromSphericalCoords(pv.dist, M.phi, theta));
+      return;
+    }
+    outTarget.copy(M.follow ? followP : courseCenter);
+    outPos.copy(outTarget).add(sphV.setFromSphericalCoords(M.follow ? M.dist : M.dist * C / 96, M.phi, theta));
+  }
+  function startFly(dur, arc) {
+    fly = { t: 0, dur, arc, fromPos: camera.position.clone(), fromTarget: controls.target.clone() };
+    controls.enabled = false;
+  }
+  function setMode(m, instant) {
+    mode = m;
+    const M = MODES[m];
+    if (M.fit) planView = computePlanView();
+    if (m === "course") { viewFit = computeOverviewFit(); if (instant) easeView(-1); }
+    modeBtns.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
+    G.label.textContent = M.label;
+    Object.assign(controls, { minDistance: M.minD, maxDistance: M.maxD, minPolarAngle: M.minP, maxPolarAngle: M.maxP, enableRotate: M.rotate, enablePan: !!M.pan });
+    controls.mouseButtons.LEFT = M.pan ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;      // in the planner, drag moves the map
+    controls.touches.ONE = M.pan ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+    scene.fog.near = M.pan ? 1e4 : C * 0.9; scene.fog.far = M.pan ? 2e4 : C * 2.4;    // no haze over the planning map
+    if (instant || reduceMotion) {
+      rigPose(M, camera.position, controls.target);
+      fly = null; controls.enabled = true; controls.update();
+    } else startFly(1.5, 4);
+  }
+  function restartLap(animate) {
+    simT = 0; finishT = 0; markS = 0; snap = true;
+    marks.clear(); dust.clear();
+    current.curve.getPointAt(0, P); current.curve.getTangentAt(0, T);
+    followP.set(P.x, groundH(P.x, P.z) + 0.6, P.z); prevFollow.copy(followP);
+    headS.set(T.x, 0, T.z).normalize();
+    if (animate && MODES[mode].follow) startFly(2, 10);
+  }
+  function select(name, animate) {
+    const next = routes.find(r => r.name === name && r.found);
+    if (!next) return;
+    if (current && current.tube) current.tube.geometry.setDrawRange(0, Infinity);
+    current = next;
+    markSelected(name);
+    const d = drivenPreset();
+    $("sum-pick").textContent = `${d >= 0 ? `P${d + 1} · ` : ""}${name} · ${fmtTime(current.cost)}`;
+    G.alg.textContent = name;
+    refreshLayers(); drawMapLayer();
+    restartLap(!!animate);
+  }
+  function routeShown(rt) {                         // which routes are on the map outside the planner
+    if (rt.key === "short") return rt === current || showShort;           // the dashed hill-blind comparison
+    if (rt.user) return true;                                              // a route you drew
+    if (rt === current) return !(rt.key === "astar" && drivenPreset() >= 0);   // a driven preset's own line already is A*'s path
+    return showAll;                                                        // the other planners, on request
+  }
+  let farView = true;                               // camera far from what it looks at: draw thick lines so they read
+  function refreshLayers() {
+    const planning = !!plan.mode, thick = planning || farView;   // the planner draws every route, thick, on top
+    routes.forEach(rt => {
+      if (!rt.tube) return;
+      const sel = rt === current, on = planning || routeShown(rt), strong = sel || rt.dashed;
+      rt.tube.visible = on && !thick;
+      rt.planTube.visible = on && thick;
+      rt.planMat.depthTest = !planning;             // outside the planner, hills hide the far side of a route
+      rt.planMat.opacity = sel ? 0.95 : rt.dashed ? 0.9 : 0.6;
+      rt.planTube.renderOrder = sel ? 5.5 : 5;
+      rt.mat.opacity = strong ? 1 : 0.45;
+      rt.mat.emissiveIntensity = strong ? 0.55 : 0.25;
+      rt.mat.depthWrite = sel;
+      if (rt.search) rt.search.visible = showSearch && sel;
+    });
+    if (extraGroup) {                               // keep the planner view clean
+      extraGroup.visible = !planning;
+      extraGroup.children.forEach(o => { if (o.userData.lod) o.visible = o.userData.lod === (thick ? "far" : "near"); });
+    }
+  }
+  function sAtTime(rt, tt) {                        // distance along the route after tt seconds, and metres per second there
+    const tA = rt.tAt, sA = rt.sAt, last = tA.length - 1;
+    if (last < 1 || tt >= tA[last]) return [sA[last] || 0, 0];
+    let lo = 0, hi = last;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (tA[mid] <= tt) lo = mid; else hi = mid; }
+    const span = tA[hi] - tA[lo], f = span > 0 ? (tt - tA[lo]) / span : 0;
+    return [sA[lo] + f * (sA[hi] - sA[lo]), span > 0 ? (sA[hi] - sA[lo]) / span : 0];
+  }
+  function installPair(start, goal, res) {          // new start/finish: new routes, flags and board
+    routes.forEach(disposeRouteVisual);
+    START = start.slice(); GOAL = goal.slice(); parked = false;
+    routes = res; current = null;                   // callers select() a route straight after
+    routes.forEach((rt, k) => { if (rt.found) buildRouteVisual(rt, 0.22 + k * 0.06); });
+    resetDraw();
+    buildFlags(endpointFlags());
+    buildExtras(); renderPathsList();               // the driven preset's line is drawn bolder, without its own label
+    $("play").disabled = $("restart").disabled = false;
+    return renderBoard();
+  }
+  function homeCell() {                             // open, gentle ground nearest the middle, clear all round
+    const cr = (R - 1) / 2, cc = (C - 1) / 2;
+    let best = MAP.start, bestD = Infinity;
+    for (let r = 1; r < R - 1; r++) for (let c = 1; c < C - 1; c++) {
+      const d = Math.hypot(r - cr, c - cc);
+      if (d >= bestD) continue;
+      let clear = true;
+      for (let dr = -1; dr <= 1 && clear; dr++) for (let dc = -1; dc <= 1; dc++) if (OBS[(r + dr) * C + c + dc]) { clear = false; break; }
+      if (!clear) continue;
+      const gx = (hAt(r, c + 1) - hAt(r, c - 1)) / 2, gz = (hAt(r + 1, c) - hAt(r - 1, c)) / 2;
+      if (Math.hypot(gx, gz) > 0.25) continue;
+      best = [r, c]; bestD = d;
+    }
+    return best;
+  }
+  function parkRover() {                            // no route: clear the board and let the rover wait, facing the overview
+    routes.forEach(disposeRouteVisual);
+    routes = []; START = GOAL = null; parked = true;
+    const x = toX(home[1]), z = toZ(home[0]), th = MODES.course.theta;
+    PARK.curve = new THREE.CatmullRomCurve3([new THREE.Vector3(x, 0, z), new THREE.Vector3(x + Math.sin(th) * 0.5, 0, z + Math.cos(th) * 0.5)]);
+    current = PARK;
+    resetDraw(); buildFlags([]); buildExtras(); renderPathsList(); renderBoard(); refreshLayers(); drawMapLayer();
+    playing = false; syncPlay(); $("play").disabled = $("restart").disabled = true;
+    G.alg.textContent = "—";
+    restartLap(false);
+  }
+
+  // ---------------------------------------------------------------- controls
+  const modeBtns = [...document.querySelectorAll("[data-mode]")];
+  modeBtns.forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+  const syncPlay = () => { $("play").textContent = playing ? "Pause" : "Play"; };
+  $("play").onclick = () => { playing = !playing; syncPlay(); };
+  $("restart").onclick = () => { playing = true; syncPlay(); restartLap(true); };
+  speedEl.addEventListener("input", () => { $("speed-val").textContent = `${speedEl.value}×`; });
+  const toggle = (id, fn) => { $(id).onclick = () => { const b = $(id), on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on)); fn(on); }; };
+  toggle("t-routes", on => { showAll = on; refreshLayers(); drawMapLayer(); });
+  toggle("t-short", on => { showShort = on; refreshLayers(); drawMapLayer(); });
+  toggle("t-search", on => { showSearch = on; refreshLayers(); });
+  controls.addEventListener("start", () => { userDown = true; lastUser = performance.now(); });
+  controls.addEventListener("end", () => { userDown = false; lastUser = performance.now(); });
+
+  // ---------------------------------------------------------------- set start & finish: click the map, drag a flag or type row, col
+  const PB = { bar: $("planbar"), title: $("pb-title"), hint: $("pb-hint"), msg: $("pb-msg"), stats: $("pb-stats"),
+               undo: $("pb-undo"), clear: $("pb-clear"), draw: $("pb-draw"), close: $("pb-close"), go: $("pb-go"),
+               pts: $("dr-pts"), dist: $("dr-dist"), time: $("dr-time"), best: $("dr-best"),
+               markers: $("pb-markers"), swap: $("pb-swap"), cursor: $("pb-cursor"),
+               pick: { start: $("pb-start"), finish: $("pb-finish") }, at: { start: $("pb-start-at"), finish: $("pb-finish-at") } };
+  // start / finish: the markers on the map (both set ⇒ that pair is installed and driven); slot: what the next click places
+  const plan = { mode: null, start: null, finish: null, slot: "start", drag: null, prevMode: "drone", prevPlaying: true, boardOpen: true };
+  const LABEL = { start: "START", finish: "FINISH" }, MARK_COLOR = { start: "#4fae6a", finish: "#f4f1e8" }, BAD_COLOR = "#ff4d3d";
+  const otherKind = k => (k === "start" ? "finish" : "start");
+  const fmtCell = c => `${c[0]}, ${c[1]}`;
+  function say(text, tone) { PB.msg.textContent = text; PB.msg.dataset.tone = tone || ""; }
+  function blockedWhy(cell) {
+    const o = OBS[cell[0] * C + cell[1]];
+    return o === 3 ? "That's water. Pick a spot on land." : o === 2 ? `A ${THEME.treeName} is there. Pick an open spot.`
+      : o === 1 ? "A rock is there. Pick an open spot." : null;
+  }
+  function boxedIn(cell) {                          // a pocket of a few cells walled off by obstacles, water or steep slopes
+    const s = cell[0] * C + cell[1], seen = new Set([s]), q = [s];
+    for (let h = 0; h < q.length && seen.size < 40; h++) {
+      const cur = q[h], r = (cur / C) | 0, c = cur - r * C;
+      for (let k = 0; k < 8; k++) {
+        const nr = r + NB_R[k], nc = c + NB_C[k];
+        if (nr < 0 || nc < 0 || nr >= R || nc >= C) continue;
+        const n = nr * C + nc;
+        if (!seen.has(n) && stepCost(cur, n) >= 0) { seen.add(n); q.push(n); }
+      }
+    }
+    return seen.size < 40;
+  }
+  function whyNot(kind, cell) {                     // can this marker go on this cell? null if yes, else the reason
+    const why = blockedWhy(cell);
+    if (why) return why;
+    const o = plan[otherKind(kind)];
+    if (o && sameCell(o, cell)) return `The ${LABEL[otherKind(kind)]} is already there. Pick a different spot.`;
+    if (boxedIn(cell)) return "That spot is walled in by obstacles, water or slopes too steep to drive. Pick another spot.";
+    return null;
+  }
+  function parseCell(text) {                        // "40, 12" · "40 12" · "(40, 12)" → [40, 12], or why it isn't a cell
+    const m = /^\s*[([]?\s*(-?\d+)\s*[,;\s]\s*(-?\d+)\s*[)\]]?\s*$/.exec(text);
+    if (!m) return { why: "Type the position as row, col: for example 40, 12." };
+    const r = Number(m[1]), c = Number(m[2]);
+    if (r < 0 || c < 0 || r >= R || c >= C) return { why: `That's off the map. Rows go from 0 to ${R - 1} and columns from 0 to ${C - 1}.` };
+    return { cell: [r, c] };
+  }
+  function refreshPlanUI() {
+    const drawing = plan.mode === "draw", both = !!(plan.start && plan.finish);
+    PB.title.textContent = drawing ? "Draw your own route" : "Set start & finish";
+    PB.stats.hidden = PB.undo.hidden = PB.clear.hidden = !drawing;
+    PB.markers.hidden = drawing;
+    PB.draw.textContent = drawing ? "Pick points" : "Draw your own";
+    PB.draw.disabled = !drawing && !both;          // drawing needs a start and a finish first
+    PB.go.textContent = drawing ? "Drive it" : "Drive";
+    for (const k of ["start", "finish"]) {
+      PB.pick[k].setAttribute("aria-pressed", String(plan.slot === k));
+      if (document.activeElement !== PB.at[k]) PB.at[k].value = plan[k] ? fmtCell(plan[k]) : "";
+    }
+    PB.swap.disabled = !both;
+    if (drawing) { updateDrawUI(); return; }
+    PB.go.disabled = !both;
+    PB.hint.textContent = `${tapWord} the map to place the ${LABEL[plan.slot]}, or type its row, col. `
+      + (coarse ? "Drag a flag to move it; drag elsewhere to move the map, pinch to zoom." : "Drag a flag to move it; drag elsewhere to move the map, scroll to zoom.");
+  }
+  function showMarkers() {                          // flags for the markers placed so far (before there is a pair to drive)
+    buildFlags(["start", "finish"].filter(k => plan[k]).map(k => ({ cell: plan[k], kind: k })));
+  }
+  function commitPair(s, f, res, lead) {            // install a start → finish pair the planners can drive, and report it
+    plan.start = s.slice(); plan.finish = f.slice();
+    const ranked = installPair(s, f, res), best = bestPlanner(ranked), short = ranked.find(r => r.key === "short" && r.found);
+    select(best.name, false);
+    drawMapLayer(); saveState();
+    const pct = short ? Math.round((short.cost / best.cost - 1) * 100) : 0;
+    say(`${lead}START ${fmtCell(s)} → FINISH ${fmtCell(f)}: quickest ${fmtTime(best.cost)} (${best.name}). `
+      + (pct >= 1 ? `The shortest route (dashed) ignores the hills and takes ${pct}% longer.` : "The shortest route is just as quick here."), "good");
+  }
+  function placeMarker(kind, cell) {               // put START or FINISH on a cell; re-plan when both are down. true if placed
+    if (plan[kind] && sameCell(plan[kind], cell)) { say(`The ${LABEL[kind]} is already at ${fmtCell(cell)}.`); return true; }
+    const why = whyNot(kind, cell);
+    if (why) { say(why, "bad"); refreshPlanUI(); return false; }
+    const s = kind === "start" ? cell : plan.start, f = kind === "finish" ? cell : plan.finish;
+    if (s && f) {
+      const res = runPlanners(s, f);
+      if (!res.some(r => r.found)) {                // can't happen on one connected map, but never install a dead pair
+        say(`No drivable route between ${fmtCell(s)} and ${fmtCell(f)}: steep slopes or water cut them apart. Move one of them.`, "bad");
+        refreshPlanUI(); return false;
+      }
+      commitPair(s, f, res, "");
+    } else {
+      plan[kind] = cell.slice();
+      showMarkers();
+      say(`${LABEL[kind]} set at ${fmtCell(cell)}. Now place the ${LABEL[otherKind(kind)]}.`, "good");
+    }
+    plan.slot = kind === "start" || !plan.start ? otherKind(kind) : kind;   // after START comes FINISH; FINISH stays put
+    refreshPlanUI();
+    return true;
+  }
+  function applyTyped(kind) {                       // a position typed into the START or FINISH box
+    const inp = PB.at[kind], text = inp.value.trim();
+    if (!text) { inp.value = plan[kind] ? fmtCell(plan[kind]) : ""; return; }
+    if (plan[kind] && text === fmtCell(plan[kind])) return;
+    const p = parseCell(text);
+    if (p.why) { say(p.why, "bad"); return; }       // keep the text so it can be fixed
+    if (placeMarker(kind, p.cell)) inp.value = fmtCell(p.cell);
+  }
+  for (const k of ["start", "finish"]) {
+    PB.pick[k].onclick = () => { plan.slot = k; say(""); refreshPlanUI(); };
+    const inp = PB.at[k];
+    inp.addEventListener("focus", () => { if (plan.slot !== k) { plan.slot = k; refreshPlanUI(); } });
+    inp.addEventListener("keydown", ev => {
+      if (ev.key === "Enter") { ev.preventDefault(); applyTyped(k); }
+      else if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); inp.value = plan[k] ? fmtCell(plan[k]) : ""; inp.blur(); }
+    });
+    inp.addEventListener("change", () => applyTyped(k));
+  }
+  PB.swap.onclick = () => {                         // the reverse trip: uphill becomes downhill, so the times change
+    if (!plan.start || !plan.finish) return;
+    const s = plan.finish, f = plan.start, before = Math.min(...routes.filter(r => r.found && !r.user && r.key !== "short").map(r => r.cost));
+    const res = runPlanners(s, f);
+    if (!res.some(r => r.found)) { say("No drivable route the other way round.", "bad"); return; }
+    commitPair(s, f, res, `Swapped (the other way took ${fmtTime(before)}). `);
+    refreshPlanUI();
+  };
+
+  // drawing your own route from START to FINISH (same rules and time model as the planners)
+  const draw = { clicks: [], cells: [], hist: [], done: false };
+  function resetDraw() {
+    draw.clicks = START ? [START.slice()] : []; draw.cells = START ? [START.slice()] : []; draw.hist = []; draw.done = false;
+  }
+  function lineCells(a, b) {                        // Bresenham: an 8-connected straight line of cells
+    let r = a[0], c = a[1];
+    const r1 = b[0], c1 = b[1], dx = Math.abs(c1 - c), dy = -Math.abs(r1 - r), sx = c < c1 ? 1 : -1, sy = r < r1 ? 1 : -1;
+    let err = dx + dy;
+    const out = [[r, c]];
+    while (r !== r1 || c !== c1) {
+      const e2 = 2 * err;
+      if (e2 >= dy) { err += dy; c += sx; }
+      if (e2 <= dx) { err += dx; r += sy; }
+      out.push([r, c]);
+    }
+    return out;
+  }
+  function legFrom(a, b) {
+    const cells = lineCells(a, b);
+    let cost = 0, dist = 0;
+    for (let i = 1; i < cells.length; i++) {
+      const p = cells[i - 1][0] * C + cells[i - 1][1], q = cells[i][0] * C + cells[i][1], st = stepCost(p, q);
+      if (st < 0) return { ok: false, why: stepWhy(p, q), cells: cells.slice(0, i + 1), bad: cells[i] };
+      cost += st; dist += stepDist(p, q);
+    }
+    return { ok: true, cells, cost, dist };
+  }
+  function targetFor(cell) {
+    if (draw.done) return { why: "Your route already reaches the finish. Drive it, or undo to change the ending." };
+    if (Math.hypot(cell[0] - GOAL[0], cell[1] - GOAL[1]) <= 2.55) return { cell: GOAL.slice(), wp: true };
+    return { cell };
+  }
+  function tryAdd(cell, quiet) {
+    const tgt = targetFor(cell);
+    if (tgt.why) { if (!quiet) say(tgt.why, "bad"); return false; }
+    const last = draw.clicks[draw.clicks.length - 1];
+    if (sameCell(last, tgt.cell)) return false;
+    const leg = legFrom(last, tgt.cell);
+    if (!leg.ok) { if (!quiet) say(`Can't drive straight there: ${leg.why}. Add a point to go around it.`, "bad"); return false; }
+    if (draw.cells.length + leg.cells.length > 4000) { if (!quiet) say("That route is very long. Undo a few points or clear it.", "bad"); return false; }
+    draw.hist.push({ n: draw.cells.length, done: draw.done });
+    let end = tgt.cell;
+    for (let i = 1; i < leg.cells.length; i++) {
+      draw.cells.push(leg.cells[i]);
+      if (sameCell(leg.cells[i], GOAL)) { draw.done = true; end = GOAL.slice(); break; }
+    }
+    draw.clicks.push(end);
+    if (!quiet) {
+      say(draw.done ? "Finish reached. Press Drive it to send the rover." : "", draw.done ? "good" : "");
+      saveState(); refreshDraw();
+    }
+    return true;
+  }
+  function undo() {
+    const h = draw.hist.pop();
+    if (!h) return;
+    draw.cells.length = h.n; draw.done = h.done; draw.clicks.pop();
+    say(""); saveState(); refreshDraw();
+  }
+  const overlay = o => Object.assign(o, { depthTest: false, depthWrite: false, transparent: true });   // planning marks sit on top
+  const neonLine = new THREE.MeshBasicMaterial(overlay({ color: NEON_CSS, opacity: 0.95 }));
+  const ghostOk = new THREE.MeshBasicMaterial(overlay({ color: NEON_CSS, opacity: 0.45 }));
+  const ghostBad = new THREE.MeshBasicMaterial(overlay({ color: "#ff4d3d", opacity: 0.85 }));
+  const drawGroup = new THREE.Group(); drawGroup.visible = false; scene.add(drawGroup);
+  const knobGeo = new THREE.SphereGeometry(0.42, 14, 10), knobs = [];
+  const badKnob = new THREE.Mesh(new THREE.SphereGeometry(0.6, 14, 10), ghostBad); badKnob.visible = false; badKnob.renderOrder = 7; drawGroup.add(badKnob);
+  let drawTube = null, ghost = null, lastHover = null, hoverEv = null;
+  function densePts(clicks, lift) {                 // straight legs between clicked cells, draped over the terrain
+    const pts = [];
+    for (let i = 1; i < clicks.length; i++) {
+      const x0 = toX(clicks[i - 1][1]), z0 = toZ(clicks[i - 1][0]), x1 = toX(clicks[i][1]), z1 = toZ(clicks[i][0]);
+      const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.5));
+      for (let k = i === 1 ? 0 : 1; k <= n; k++) {
+        const x = x0 + (x1 - x0) * k / n, z = z0 + (z1 - z0) * k / n;
+        pts.push(new THREE.Vector3(x, groundH(x, z) + lift, z));
+      }
+    }
+    return pts;
+  }
+  function cellsTube(clicks, lift, radius, mat) {
+    if (clicks.length < 2) return null;
+    const pts = densePts(clicks, lift);
+    const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, "centripetal"), Math.max(4, pts.length * 2), radius, RADIAL, false), mat);
+    m.renderOrder = 6; return m;
+  }
+  const dropMesh = m => { if (m) { drawGroup.remove(m); m.geometry.dispose(); } return null; };
+  function refreshDraw() {
+    drawTube = dropMesh(drawTube);
+    drawTube = cellsTube(draw.clicks, 0.55, 0.2, neonLine);
+    if (drawTube) drawGroup.add(drawTube);
+    while (knobs.length > draw.clicks.length) drawGroup.remove(knobs.pop());
+    while (knobs.length < draw.clicks.length) { const k = new THREE.Mesh(knobGeo, neonLine); k.renderOrder = 7; knobs.push(k); drawGroup.add(k); }
+    draw.clicks.forEach(([r, c], i) => knobs[i].position.set(toX(c), hAt(r, c) + 0.55, toZ(r)));
+    ghost = dropMesh(ghost); badKnob.visible = false; lastHover = null;
+    if (plan.mode === "draw") updateDrawUI();
+  }
+  function preview(cell) {
+    if (cell && lastHover && sameCell(cell, lastHover)) return;
+    lastHover = cell;
+    ghost = dropMesh(ghost); badKnob.visible = false;
+    if (!cell) return;
+    const tgt = targetFor(cell);
+    if (tgt.why) { say(tgt.why, "bad"); return; }
+    const last = draw.clicks[draw.clicks.length - 1];
+    if (sameCell(last, tgt.cell)) return;
+    const leg = legFrom(last, tgt.cell);
+    ghost = cellsTube([last, leg.ok ? tgt.cell : leg.bad], 0.55, 0.13, leg.ok ? ghostOk : ghostBad);
+    if (ghost) drawGroup.add(ghost);
+    if (!leg.ok) {
+      const [r, c] = leg.bad; badKnob.position.set(toX(c), hAt(r, c) + 0.55, toZ(r)); badKnob.visible = true;
+      say(`Blocked: ${leg.why}.`, "bad");
+    } else say(`Next leg: ${leg.dist.toFixed(0)} m, ${fmtTime(leg.cost)}${tgt.wp ? " to the finish" : ""}.`);
+  }
+  function updateDrawUI() {
+    const idx = draw.cells.map(([r, c]) => r * C + c);
+    let cost = 0, dist = 0;
+    for (let k = 1; k < idx.length; k++) { cost += stepCost(idx[k - 1], idx[k]); dist += stepDist(idx[k - 1], idx[k]); }
+    const best = Math.min(...routes.filter(r => r.found && !r.user).map(r => r.cost));
+    PB.pts.textContent = draw.clicks.length - 1;
+    PB.dist.textContent = dist.toFixed(0);
+    PB.time.textContent = fmtTime(cost);
+    PB.best.textContent = fmtTime(best);
+    PB.go.disabled = !draw.done; PB.undo.disabled = !draw.hist.length;
+    if (draw.done) {
+      const d = (cost - best) / best * 100;
+      PB.hint.textContent = d < 0.05
+        ? `Route complete: ${fmtTime(cost)}. That ties the quickest planner, and no route can be faster.`
+        : `Route complete: ${fmtTime(cost)}, ${d.toFixed(1)}% slower than the quickest path A* found.`;
+    } else {
+      PB.hint.textContent = `${tapWord} the map to add points from START to FINISH. Each point joins the last with a straight line. ${navHint}`;
+    }
+  }
+  function commitRoute(silent) {
+    const idx = draw.cells.map(([r, c]) => r * C + c);
+    let rt = routes.find(r => r.user);
+    if (rt) disposeRouteVisual(rt); else { rt = { user: true, key: "user" }; routes.push(rt); }
+    let cost = 0;
+    for (let k = 1; k < idx.length; k++) cost += stepCost(idx[k - 1], idx[k]);
+    Object.assign(rt, { name: "Your route", color: NEON_CSS, found: true, cost, nodes: null, ms: null, peak: null,
+      idx, cells: draw.cells.map(c => c.slice()), explored: [], stats: statsOf(idx) });
+    buildRouteVisual(rt, 0.55, densePts(draw.clicks, 0.55));
+    renderBoard(); refreshLayers(); drawMapLayer();
+    if (silent) return;
+    saveState();
+    exitPlan();
+    playing = true; syncPlay();
+    select(rt.name, true);
+  }
+
+  // clicks on the map: a short press picks or adds a point, a drag pans
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function cellAt(ev) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    ndc.set((ev.clientX - rect.left) / rect.width * 2 - 1, -(ev.clientY - rect.top) / rect.height * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const hit = world && ray.intersectObject(world.ground, false)[0];
+    return hit ? [clamp(Math.round(hit.point.z + (R - 1) / 2), 0, R - 1), clamp(Math.round(hit.point.x + (C - 1) / 2), 0, C - 1)] : null;
+  }
+  const cvs = renderer.domElement, pointers = new Set(), tmpA = new THREE.Vector3();
+  let tap = null, hoverKey = "";
+  function screenOf(v, rect) { v.project(camera); return [(v.x + 1) / 2 * rect.width, (1 - v.y) / 2 * rect.height]; }
+  function flagUnder(ev) {                          // the START or FINISH flag (its ring or its label) under the pointer
+    if (plan.mode !== "pick") return null;
+    const rect = cvs.getBoundingClientRect(), px = ev.clientX - rect.left, py = ev.clientY - rect.top, pad = coarse ? 12 : 5;
+    const unit = rect.height / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);   // screen px per sprite-scale unit
+    let best = null, bestD = Infinity;
+    for (const k of ["start", "finish"]) {
+      const part = flagParts[k];
+      if (!part || !plan[k]) continue;
+      const x = toX(part.cell[1]), z = toZ(part.cell[0]), y = hAt(part.cell[0], part.cell[1]);
+      const [cx, cy] = screenOf(tmpA.set(x, y, z), rect), [ex, ey] = screenOf(tmpA.set(x + 2.55, y, z), rect);
+      const dRing = Math.hypot(px - cx, py - cy);
+      if (dRing <= Math.max(14, Math.hypot(ex - cx, ey - cy)) + pad && dRing < bestD) { bestD = dRing; best = k; }
+      part.g.updateWorldMatrix(true, true);
+      const lab = part.g.userData.label, [lx, ly] = screenOf(lab.getWorldPosition(tmpA), rect);
+      const halfW = lab.scale.x * unit / 2 + pad, h = lab.scale.y * unit + pad;     // the label sits on its anchor
+      if (Math.abs(px - lx) <= halfW && py <= ly + pad && py >= ly - h) {
+        const d = Math.hypot(px - lx, py - (ly - h / 2));
+        if (d < bestD) { bestD = d; best = k; }
+      }
+    }
+    return best;
+  }
+  // a press on a flag grabs it. Capture phase on the stage, so it runs before the camera controls see the press:
+  // turning them off mid-gesture would leave them stuck, so they never start one.
+  stage.addEventListener("pointerdown", ev => {
+    const typing = document.activeElement;          // a press on the map drops unconfirmed typing (Enter confirms it).
+    if (typing === PB.at.start || typing === PB.at.finish) {   // The camera controls block the browser's own focus change,
+      const k = typing === PB.at.start ? "start" : "finish";   // so leave the box here.
+      typing.value = plan[k] ? fmtCell(plan[k]) : "";
+      typing.blur();
+    }
+    if (plan.mode !== "pick" || plan.drag || !ev.isPrimary || (ev.pointerType === "mouse" && ev.button !== 0)) return;
+    const kind = flagUnder(ev);
+    if (!kind) return;
+    controls.enabled = false;
+    plan.drag = { kind, id: ev.pointerId, from: plan[kind].slice(), cell: plan[kind].slice(), ok: true, moved: false, x: ev.clientX, y: ev.clientY };
+    try { cvs.setPointerCapture(ev.pointerId); } catch (e) { /* capture is only a nicety */ }
+    cvs.style.cursor = "grabbing"; cursorRing.hide();
+  }, true);
+  function dragMove(ev) {                           // the flag follows the pointer, cell by cell; its ring shows if it may land
+    const d = plan.drag;
+    if (!d.moved) {
+      if (Math.hypot(ev.clientX - d.x, ev.clientY - d.y) <= 5) return;
+      d.moved = true;
+      flagParts[d.kind].zone.visible = false;
+    }
+    const cell = cellAt(ev);
+    if (!cell || (d.shown && sameCell(cell, d.cell))) return;
+    d.cell = cell; d.shown = true;
+    const why = sameCell(cell, d.from) ? null : whyNot(d.kind, cell);
+    d.ok = !why;
+    cursorRing.show(cell, why ? BAD_COLOR : MARK_COLOR[d.kind]);
+    placePole(flagParts[d.kind].g, cell);
+    if (why) say(why, "bad"); else say(`${LABEL[d.kind]} → ${fmtCell(cell)}. Let go to place it here.`);
+  }
+  function endDrag(type) {                          // let go: place the flag there, or put it back
+    const d = plan.drag;
+    plan.drag = null; hoverKey = "";
+    controls.enabled = true;
+    try { cvs.releasePointerCapture(d.id); } catch (e) { /* already released */ }
+    cvs.style.cursor = ""; cursorRing.hide();
+    if (type === "pointerup" && !d.moved) {         // a click on a flag picks it as the one to place next
+      plan.slot = d.kind; refreshPlanUI();
+      say(`${LABEL[d.kind]} chosen: ${tapWord.toLowerCase()} the map where it should go, or drag the flag.`);
+      return;
+    }
+    if (type === "pointerup" && d.ok && !sameCell(d.cell, d.from)) {
+      if (placeMarker(d.kind, d.cell)) return;      // placed (and re-planned)
+    } else if (d.ok) say("");                       // dropped where it started, or cancelled
+    showMarkers(); refreshPlanUI();                 // refused or cancelled: the flag goes back; any reason stays on screen
+  }
+  function hoverPick(ev) {                          // pointer readout, cursor shape, and the ring where a click would land
+    const cell = cellAt(ev), onFlag = flagUnder(ev), key = `${cell}|${onFlag}|${plan.slot}|${plan.start}|${plan.finish}`;
+    if (key === hoverKey) return;
+    hoverKey = key;
+    cvs.style.cursor = onFlag ? "grab" : cell ? "crosshair" : "";
+    if (!cell || onFlag) {
+      cursorRing.hide();
+      PB.cursor.textContent = onFlag ? `${LABEL[onFlag]} flag: drag it to move it, or click it to choose it.` : "";
+      return;
+    }
+    const i = cell[0] * C + cell[1], o = OBS[i];
+    PB.cursor.textContent = `Pointer: row ${cell[0]}, col ${cell[1]} · ` + (o === 3 ? "water" : o === 2 ? THEME.treeName : o === 1 ? "rock"
+      : `${MAP.surfaces[SURF[i]].name.toLowerCase()}, ${H[i].toFixed(1)} m high`);
+    const here = plan[plan.slot] && sameCell(plan[plan.slot], cell);
+    cursorRing.show(cell, !here && whyNot(plan.slot, cell) ? BAD_COLOR : MARK_COLOR[plan.slot]);
+  }
+  function clearHover() { hoverEv = null; hoverKey = ""; cursorRing.hide(); PB.cursor.textContent = ""; if (!plan.drag) cvs.style.cursor = ""; }
+  cvs.addEventListener("pointerdown", ev => {
+    pointers.add(ev.pointerId);
+    tap = plan.mode && !plan.drag && pointers.size === 1 ? { x: ev.clientX, y: ev.clientY, id: ev.pointerId } : null;
+  });
+  const pointerEnd = ev => {
+    pointers.delete(ev.pointerId);
+    if (plan.drag && ev.pointerId === plan.drag.id) { endDrag(ev.type); return; }
+    if (!tap || tap.id !== ev.pointerId) return;
+    const t0 = tap; tap = null;
+    if (!plan.mode || ev.type !== "pointerup" || Math.hypot(ev.clientX - t0.x, ev.clientY - t0.y) > 6) return;
+    const cell = cellAt(ev);
+    if (!cell) return;
+    if (plan.mode === "pick") {
+      placeMarker(plan.slot, cell);
+      hoverKey = "";
+      if (ev.pointerType === "mouse") hoverEv = ev;   // refresh the ring for whichever marker comes next
+    } else tryAdd(cell);
+  };
+  cvs.addEventListener("pointerup", pointerEnd);
+  cvs.addEventListener("pointercancel", pointerEnd);
+  cvs.addEventListener("pointermove", ev => {
+    if (plan.drag && ev.pointerId === plan.drag.id) { dragMove(ev); return; }
+    if (plan.mode && ev.pointerType === "mouse" && !ev.buttons) hoverEv = ev;
+  });
+  cvs.addEventListener("pointerleave", () => {
+    if (plan.mode === "draw") { hoverEv = null; preview(null); }
+    else if (plan.mode === "pick" && !plan.drag) clearHover();
+  });
+
+  function enterPlan() {
+    if (plan.mode) return;
+    showPaths(false);
+    Object.assign(plan, { mode: "pick", start: START ? START.slice() : null, finish: GOAL ? GOAL.slice() : null, slot: "start", drag: null,
+                          prevMode: mode, prevPlaying: playing, boardOpen: $("board").open });
+    playing = false; syncPlay();
+    $("tele").hidden = true; $("drone").hidden = true; PB.bar.hidden = false;
+    $("board").hidden = narrow();
+    if (!narrow()) $("board").open = true;
+    say(""); refreshPlanUI(); refreshLayers();
+    setMode("plan");
+  }
+  function exitPlan() {
+    if (!plan.mode) return;
+    if (plan.drag) { plan.drag = null; controls.enabled = true; }
+    if (!(plan.start && plan.finish)) buildFlags(endpointFlags());   // a lone marker without a partner isn't kept
+    plan.start = plan.finish = null;
+    clearHover();
+    plan.mode = null; hoverEv = null; preview(null); drawGroup.visible = false; refreshLayers();
+    zoneRings.forEach(z => { z.material.opacity = 0.8; });
+    PB.bar.hidden = true; $("tele").hidden = false; $("drone").hidden = false;
+    $("board").hidden = false; $("board").open = narrow() ? false : plan.boardOpen;
+    playing = plan.prevPlaying && !parked; syncPlay();
+    viewFit = computeOverviewFit();
+    const prev = MODES[plan.prevMode] && plan.prevMode !== "plan" ? plan.prevMode : "course";
+    setMode(parked ? prev : MODES[prev].follow ? prev : "drone");    // with a route, ride along; without one, go back
+  }
+  $("plan-btn").onclick = enterPlan;
+  PB.close.onclick = exitPlan;
+  PB.undo.onclick = undo;
+  PB.clear.onclick = () => { resetDraw(); saveState(); say(""); refreshDraw(); };
+  PB.draw.onclick = () => {
+    if (plan.mode === "draw") { plan.mode = "pick"; drawGroup.visible = false; hoverEv = null; preview(null); say(""); refreshPlanUI(); return; }
+    if (!(plan.start && plan.finish) || plan.drag) return;
+    clearHover();
+    plan.mode = "draw"; drawGroup.visible = true; say(""); refreshDraw(); refreshPlanUI();
+  };
+  PB.go.onclick = () => {
+    if (plan.mode === "draw") { if (draw.done) commitRoute(false); return; }
+    exitPlan(); playing = true; syncPlay(); restartLap(true);
+  };
+  addEventListener("keydown", ev => {
+    if (!plan.mode || ev.target instanceof HTMLInputElement) return;   // the position boxes handle their own keys
+    if (ev.key === "Escape") { ev.preventDefault(); if (plan.drag) endDrag("cancel"); else exitPlan(); }
+    else if (plan.mode === "draw" && (ev.key === "z" || ev.key === "Z") && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); undo(); }
+  });
+
+  // the added paths, the route being driven and a drawn route per map survive a reload in this browser (a convenience only)
+  const saveKey = () => `rover-hill-v2:${MAP.key}:${MAP.seed}:${C}x${R}`;
+  function saveState() {
+    try {
+      localStorage.setItem(saveKey(), JSON.stringify({ pair: parked ? null : [START, GOAL], clicks: parked ? [] : draw.clicks, extras: [...extraOn] }));
+    } catch (e) { /* storage unavailable */ }
+  }
+  function loadState() {
+    try { return JSON.parse(localStorage.getItem(saveKey()) || "null"); } catch (e) { return null; }
+  }
+  const validCell = c => Array.isArray(c) && c.length === 2 && c[0] >= 0 && c[1] >= 0 && c[0] < R && c[1] < C && !OBS[c[0] * C + c[1]];
+
+  // copy the finished route so Python can score it: python main.py score-route route.json
+  function boardSay(text) { const m = $("board-msg"); m.textContent = text; m.hidden = false; }
+  $("t-copy").onclick = () => {
+    const rt = routes.find(r => r.user);
+    if (!rt) return;
+    const json = JSON.stringify({ map: MAP.meta, start: START, goal: GOAL, path: rt.cells });
+    const fallback = () => {
+      const ta = $("route-json"); ta.value = json; ta.hidden = false; ta.focus(); ta.select();
+      boardSay("Copy the text below into a file named route.json, then run: python main.py score-route route.json");
+    };
+    try {
+      navigator.clipboard.writeText(json).then(
+        () => boardSay("Route copied. Paste it into route.json, then run: python main.py score-route route.json"), fallback);
+    } catch (e) { fallback(); }
+  };
+
+  // ---------------------------------------------------------------- more paths: 20 optional preset routes per map
+  // 20 colours kept clear of the planners' orange, blue, magenta, red and grey and the dashed white
+  const PATH_COLORS = ["#33d6e6", "#a07cff", "#ff6fb1", "#22b8a0", "#ffd84a", "#5468ff", "#c6f36b", "#d4b3ff", "#ff9b85", "#9ff5d0",
+                       "#00a0c8", "#7a3cff", "#ffa6d6", "#0f8f6f", "#e3ef4f", "#9aa8ff", "#e48cff", "#ffc29e", "#4fd3a0", "#ff4f7b"];
+  const pathColor = i => PATH_COLORS[i % PATH_COLORS.length];
+  const moreBtn = $("more-btn"), pathsPanel = $("paths"), pathsList = $("paths-list");
+  let extraOn = new Set(), extraGroup = null;      // added paths, in the order they were added
+  function drivenPreset() { return parked || !MAP ? -1 : MAP.presets.findIndex(p => sameCell(p.start, START) && sameCell(p.goal, GOAL)); }
+  function buildExtras() {                          // a coloured line, end rings and a label for every added path
+    if (extraGroup) { scene.remove(extraGroup); disposeTree(extraGroup); }
+    extraGroup = new THREE.Group();
+    extraGroup.visible = !plan.mode;
+    const driven = drivenPreset();
+    for (const i of extraOn) {
+      const p = MAP.presets[i], color = pathColor(i), pts = [], focus = i === driven;
+      for (let k = 0; k < p.path.length; k += 2) pts.push(new THREE.Vector3(toX(p.path[k + 1]), hAt(p.path[k], p.path[k + 1]) + 0.35, toZ(p.path[k])));
+      // drawn before the raced routes (renderOrder 4 < 4.5 / 5) so those stay on top where lines cross
+      const mat = new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false }); mat.color.convertSRGBToLinear();
+      const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal");
+      for (const [lod, radius] of [["near", focus ? 0.16 : 0.12], ["far", focus ? 0.32 : 0.2]]) {   // thin up close, thicker far away
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, pts.length * 2, radius, RADIAL, false), mat);
+        tube.userData.lod = lod; tube.renderOrder = focus ? 4.2 : 4;
+        tube.visible = lod === (farView ? "far" : "near");
+        extraGroup.add(tube);
+      }
+      if (focus) continue;                          // the path being driven: its START and FINISH flags mark the ends
+      for (const cell of [p.start, p.goal]) extraGroup.add(groundRing(toX(cell[1]), toZ(cell[0]), 0.75, 1.15, color, 0.95));
+      const lab = labelSprite(`P${i + 1}`, color, "#1b1a14", 128);
+      lab.position.set(toX(p.start[1]), hAt(p.start[0], p.start[1]) + 1.6, toZ(p.start[0]));
+      extraGroup.add(lab);
+    }
+    scene.add(extraGroup);
+  }
+  function renderPathsList() {
+    moreBtn.textContent = extraOn.size ? `More paths (${extraOn.size})` : "More paths";
+    moreBtn.classList.toggle("cta", parked && !extraOn.size);   // empty map: this is where to start
+    if (pathsPanel.hidden) return;
+    const n = extraOn.size, total = MAP.presets.length, driven = drivenPreset();
+    $("paths-map").textContent = MAP.name;
+    $("paths-count").textContent = !n ? "None added yet" : n === total ? `All ${total} added` : `${n} of ${total} added`;
+    $("paths-all").disabled = n === total; $("paths-none").disabled = !n && parked;
+    pathsList.textContent = "";
+    MAP.presets.forEach((p, i) => {
+      const li = document.createElement("li"), active = i === driven, pct = Math.round((p.short_time / p.time - 1) * 100);
+      if (active) li.setAttribute("aria-current", "true");
+      li.title = `Start (${p.start.join(", ")}) → destination (${p.goal.join(", ")}) · ${Math.round(p.distance_m)} m. `
+        + `Quickest over the hills: ${fmtTime(p.time)}. The shortest route ignores the hills and takes ${fmtTime(p.short_time)} (+${pct}%).`;
+      li.innerHTML = `<label><input type="checkbox" data-i="${i}"${extraOn.has(i) ? " checked" : ""}><i style="background:${pathColor(i)}"></i>`
+        + `<b>P${i + 1}</b><span>${p.name}</span></label>`
+        + `<span class="paths-time">${fmtTime(p.time)}<span class="paths-dist"> vs ${fmtTime(p.short_time)}</span></span>`
+        + `<button class="chip" data-drive="${i}">${active ? "Driving" : "Drive"}</button>`;
+      pathsList.appendChild(li);
+    });
+  }
+  function setExtras(list, on) {
+    const driven = drivenPreset();
+    list.forEach(i => (on ? extraOn.add(i) : extraOn.delete(i)));
+    if (on && list.length && parked && !plan.mode) { drivePreset(list[0], false); return; }   // first path on an empty map: drive it
+    if (!on && driven >= 0 && !extraOn.has(driven)) {                 // the path being driven was taken off the map
+      const rest = [...extraOn];
+      if (rest.length) drivePreset(rest[rest.length - 1], false);     // go back to the last one added
+      else { parkRover(); saveState(); }
+      return;
+    }
+    buildExtras(); drawMapLayer(); saveState(); renderPathsList(); refreshLayers();
+    if (on && list.length && MODES[mode].follow && !plan.mode) setMode("course");   // step back so they're all in view
+  }
+  function drivePreset(i, ride) {                   // send the rover along preset i (adding its line); ride = follow it with the drone
+    const p = MAP.presets[i];
+    extraOn.add(i);
+    const ranked = installPair(p.start, p.goal, runPlanners(p.start, p.goal));
+    playing = true; syncPlay();
+    select(bestPlanner(ranked).name, false);
+    drawMapLayer(); saveState(); renderPathsList();
+    if (ride) {
+      if (narrow()) showPaths(false);
+      if (MODES[mode].follow) restartLap(true); else setMode("drone");
+    } else if (MODES[mode].follow) setMode("course");                 // stay back so the whole path is in view
+  }
+  function clearPaths() {                           // Remove all: an empty map again, rover parked
+    extraOn.clear();
+    if (plan.mode) exitPlan();
+    parkRover(); saveState();
+  }
+  function showPaths(open) {                        // on wide screens the list takes the mini-map's corner while it's open
+    pathsPanel.hidden = !open; moreBtn.setAttribute("aria-expanded", String(open));
+    $("drone").hidden = open || !!plan.mode;
+    renderPathsList();
+    if (MAP && !plan.mode) viewFit = computeOverviewFit();   // the overview makes room beside the list
+  }
+  moreBtn.onclick = () => showPaths(pathsPanel.hidden);
+  $("paths-close").onclick = () => showPaths(false);
+  $("paths-all").onclick = () => setExtras(MAP.presets.map((_, i) => i).filter(i => !extraOn.has(i)), true);
+  $("paths-none").onclick = clearPaths;
+  pathsList.addEventListener("change", ev => { if (ev.target.matches("input[data-i]")) setExtras([+ev.target.dataset.i], ev.target.checked); });
+  pathsList.addEventListener("click", ev => { const b = ev.target.closest("[data-drive]"); if (b) drivePreset(+b.dataset.drive, true); });
+  addEventListener("keydown", ev => { if (ev.key === "Escape" && !plan.mode && !pathsPanel.hidden) showPaths(false); });
+
+  // ---------------------------------------------------------------- switching maps
+  let mapIdx = -1;
+  const mapBtns = SCENE.maps.map((m, i) => {
+    const b = document.createElement("button");
+    b.innerHTML = `<i style="background:${THEMES[m.key].swatch}"></i>${m.name}`;
+    b.setAttribute("aria-pressed", "false");
+    b.onclick = () => { if (i !== mapIdx) loadMap(i); };
+    $("maps").appendChild(b);
+    return b;
+  });
+  function loadMap(i) {
+    if (plan.mode) exitPlan();
+    mapIdx = i; MAP = SCENE.maps[i]; THEME = THEMES[MAP.key];
+    R = MAP.rows; C = MAP.cols; H = MAP.heights; SURF = MAP.surface; OBS = MAP.obstacle;
+    SCOST = MAP.surfaces.map(s => s.cost);
+    hMin = Infinity; hMax = -Infinity;
+    for (const h of H) { if (h < hMin) hMin = h; if (h > hMax) hMax = h; }
+    PAL = { surf: THEME.surf.map(p => p.map(hex)), steep: hex(THEME.steep), water: hex(THEME.water || "#1fa5b8"), seabed: hex(THEME.seabed || "#c9b98a") };
+    DUSTS = THEME.dust.map(d => Object.assign({}, d, { col: hex(d.col) }));
+    courseCenter.set(0, hMin + (hMax - hMin) * 0.35, 0);
+    applyTheme(); rover.setSky(THEME); buildWorld();
+    marks.mesh.material.color.copy(lin(THEME.marks));
+    mapBtns.forEach((b, k) => b.setAttribute("aria-pressed", String(k === i)));
+    $("eyebrow").textContent = `${MAP.name} · seed ${MAP.seed}`;
+    const blockedN = OBS.filter(o => o === 1 || o === 2).length;
+    $("specs").innerHTML = [["Map", `${C}×${R} m`], ["Relief", `${MAP.relief.toFixed(1)} m`],
+      ["Grade limit", `${Math.round(MAP.max_grade * 100)}%`], ["Surfaces", MAP.surfaces.map(s => s.name).join(", ")],
+      ["Obstacles", blockedN]].map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join("");
+    // no default route: the map opens empty, unless this browser saved paths or a route for it
+    home = homeCell();
+    paintBase();
+    const saved = loadState();
+    extraOn = new Set(((saved && saved.extras) || []).filter(k => Number.isInteger(k) && k >= 0 && k < MAP.presets.length));
+    const pair = saved && Array.isArray(saved.pair) ? saved.pair : null;
+    let res = null;
+    if (pair && validCell(pair[0]) && validCell(pair[1]) && !sameCell(pair[0], pair[1])) {
+      res = runPlanners(pair[0], pair[1]);
+      if (!res.some(r => r.found)) res = null;
+    }
+    if (res) {
+      const ranked = installPair(pair[0], pair[1], res);
+      if (Array.isArray(saved.clicks)) {
+        for (const c of saved.clicks.slice(1)) if (!Array.isArray(c) || !tryAdd([c[0] | 0, c[1] | 0], true)) { resetDraw(); break; }
+        if (draw.done) commitRoute(true);
+      }
+      drawMapLayer();
+      playing = true; syncPlay();
+      select(bestPlanner(ranked).name, false);
+    } else parkRover();
+    setMode("course", true);
+  }
+
+  // ---------------------------------------------------------------- per-frame
+  let side = 1;
+  function spawnDust(surf, v) {
+    const D = DUSTS[surf] || DUSTS[0]; side = -side;
+    tmpV.set(side * rover.track.x, 0.06, rover.track.rear); rover.group.localToWorld(tmpV);
+    const back = (0.3 + Math.random() * 0.5) * (0.6 + v * 0.1), lat = side * (0.1 + Math.random() * 0.35);
+    dust.emit(tmpV.x, tmpV.y, tmpV.z,
+      -fwd.x * back + rightH.x * lat, D.up + Math.random() * D.upR, -fwd.z * back + rightH.z * lat,
+      D.col, D.size * (0.8 + Math.random() * 0.4), D.grow, D.life * (0.75 + Math.random() * 0.5), D.a, D.grav);
+  }
+  function addMark() {
+    tmpV.set(-rover.track.x, 0, rover.track.rear + 0.1); rover.group.localToWorld(tmpV);
+    const lx = tmpV.x, lz = tmpV.z, hw = rover.track.width / 2 + 0.005;
+    tmpV.set(rover.track.x, 0, rover.track.rear + 0.1); rover.group.localToWorld(tmpV);
+    marks.add(lx, lz, tmpV.x, tmpV.z, rightH.x * hw, rightH.z * hw);
+  }
+  let prevT = performance.now(), hudT = 1, emitAcc = 0;
+  function frame(now) {
+    const dt = Math.max(0, Math.min(0.05, (now - prevT) / 1000)); prevT = now;
+    const t = now / 1000, total = current.cost, playback = +speedEl.value, driving = !current.park;
+
+    // 1. drive by the clock: after simT seconds the rover is where the time model says (parked: it waits)
+    const finishing = driving && simT >= total;
+    if (playing && driving) {
+      if (!finishing) simT = Math.min(total, simT + dt * playback);
+      else if ((finishT += dt) > 3.2) restartLap(true);
+    }
+    const [s, mps] = sAtTime(current, simT);
+    const v = playing && driving && simT < total ? mps * playback : 0;
+    const u = Math.min(1, s / current.len);
+    current.curve.getPointAt(u, P); current.curve.getTangentAt(u, T);
+    fwd.set(T.x, 0, T.z); if (fwd.lengthSq() < 1e-8) fwd.set(0, 0, 1); fwd.normalize();
+    rightH.set(fwd.z, 0, -fwd.x);
+    const gy = groundH(P.x, P.z);
+    const grade = (groundH(P.x + fwd.x * 0.8, P.z + fwd.z * 0.8) - groundH(P.x - fwd.x * 0.8, P.z - fwd.z * 0.8)) / 1.6;
+    const surf = SURF[clamp(Math.round(P.z + (R - 1) / 2), 0, R - 1) * C + clamp(Math.round(P.x + (C - 1) / 2), 0, C - 1)];
+
+    // 2. sit on the terrain, pitch and roll with it
+    up.copy(normalAt(P.x, P.z, 0.9));
+    f2.copy(fwd).addScaledVector(up, -fwd.dot(up)).normalize();
+    xr.crossVectors(up, f2).normalize();
+    basis.makeBasis(xr, up, f2); targetQ.setFromRotationMatrix(basis);
+    if (snap) rover.group.quaternion.copy(targetQ); else rover.group.quaternion.slerp(targetQ, 1 - Math.exp(-dt * 8));
+    rover.group.position.set(P.x, gy, P.z);
+    rover.group.updateMatrixWorld();
+    current.curve.getPointAt(Math.min(1, (s + 5) / current.len), lookP); lookP.sub(P);
+    const lookYaw = clamp(Math.atan2(lookP.dot(rightH), lookP.dot(fwd)), -1, 1) * 0.9;
+    rover.animate(t, v, dt, lookYaw, finishing);
+
+    // 3. dust, tread marks, route ahead
+    if (v > 0) {
+      emitAcc += dt * (DUSTS[surf] || DUSTS[0]).rate * Math.min(1.8, v / 3) * (reduceMotion ? 0.3 : 1);
+      while (emitAcc >= 1) { emitAcc -= 1; spawnDust(surf, v); }
+      if (s - markS >= 0.3) { markS = s; addMark(); }
+    }
+    dust.update(dt);
+    drapeRing(P.x, P.z, 1 + 0.03 * Math.sin(t * 3));
+    ringMat.opacity = 0.7 + 0.25 * Math.sin(t * 3);
+    if (current.tube) {                             // the route ahead of the rover (the planner shows all of it)
+      if (plan.mode) current.tube.geometry.setDrawRange(0, Infinity);
+      else current.tube.geometry.setDrawRange(Math.floor(u * current.segs) * RADIAL * 6, Infinity);
+    }
+    flags.forEach((f, i) => { f.userData.cloth.rotation.y = Math.sin(t * 2.4 + i) * 0.25; });
+    if (plan.mode === "draw") {
+      if (hoverEv) { preview(cellAt(hoverEv)); hoverEv = null; }
+      if (zoneRings[1]) zoneRings[1].material.opacity = draw.done ? 0.8 : 0.35 + 0.6 * Math.abs(Math.sin(t * 3));
+    } else if (plan.mode === "pick" && hoverEv && !plan.drag) { const ev = hoverEv; hoverEv = null; hoverPick(ev); }
+
+    // 4. drone camera
+    camera.position.sub(bob);
+    followP.lerp(tmpV.set(P.x, gy + 0.6, P.z), snap ? 1 : 1 - Math.exp(-dt * 5));
+    if (snap) headS.copy(fwd);
+    else { headS.lerp(fwd, 1 - Math.exp(-dt * 1.2)); if (headS.lengthSq() > 0.01) headS.normalize(); else headS.copy(fwd); }
+    snap = false;
+    const M = MODES[mode];
+    if (fly) {
+      fly.t += dt;
+      const e = ease(Math.min(1, fly.t / fly.dur));
+      rigPose(M, endPos, endTarget);
+      camera.position.lerpVectors(fly.fromPos, endPos, e);
+      camera.position.y += Math.sin(Math.PI * e) * fly.arc;
+      controls.target.lerpVectors(fly.fromTarget, endTarget, e);
+      camera.lookAt(controls.target);
+      if (e >= 1) { fly = null; controls.enabled = true; }
+    } else {
+      if (M.follow) {
+        delta.subVectors(followP, prevFollow);
+        camera.position.add(delta); controls.target.add(delta);
+        if (M.yawRate > 0 && !userDown && now - lastUser > 4000) {     // swing round behind the rover
+          off.subVectors(camera.position, controls.target); sph.setFromVector3(off);
+          sph.theta += wrapPi(Math.atan2(-headS.x, -headS.z) - sph.theta) * (1 - Math.exp(-dt * M.yawRate));
+          off.setFromSpherical(sph); camera.position.copy(controls.target).add(off);
+        }
+      }
+      controls.update();
+    }
+    prevFollow.copy(followP);
+    if (!plan.mode) {                               // swap thin and thick lines as the camera moves in and out
+      const far = camera.position.distanceTo(controls.target) > 48;
+      if (far !== farView) { farView = far; refreshLayers(); }
+    }
+    const floor = Math.max(groundH(camera.position.x, camera.position.z), MAP.sea != null ? MAP.sea : -1e9) + 1.5;
+    if (camera.position.y < floor) camera.position.y = floor;
+    if (mode === "drone" && !fly && !reduceMotion) bob.set(Math.sin(t * 0.7) * 0.16, Math.sin(t * 1.13) * 0.2, Math.cos(t * 0.61) * 0.16);
+    else bob.set(0, 0, 0);
+    camera.position.add(bob);
+    easeView(dt);
+
+    // 5. map and telemetry
+    if (!plan.mode) drawMinimap(P);
+    G.bar.style.width = (driving && total ? simT / total * 100 : 0) + "%";
+    if ((hudT += dt) > 0.1) {
+      hudT = 0;
+      G.time.textContent = driving ? `${fmtTime(simT)} / ${fmtTime(total)}` : "—";
+      G.dist.textContent = s.toFixed(0);
+      G.elev.textContent = gy.toFixed(1);
+      G.grade.textContent = (grade * 100).toFixed(0);
+      const sc = SCOST[surf] || 1;
+      G.surf.textContent = (MAP.surfaces[surf] || MAP.surfaces[0]).name;
+      G.surf.className = sc <= 1 ? "surf-good" : sc < 2 ? "surf-warn" : "surf-bad";
+      G.alt.textContent = Math.max(0, camera.position.y - groundH(camera.position.x, camera.position.z)).toFixed(0);
+      G.hdg.textContent = String(Math.round((Math.atan2(fwd.x, -fwd.z) * 180 / Math.PI + 360) % 360)).padStart(3, "0");
+    }
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+
+  const dbSize = new THREE.Vector2();
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.fov = w < 700 ? 60 : 50; camera.updateProjectionMatrix();
+    renderer.getDrawingBufferSize(dbSize);
+    dust.mat.uniforms.uScale.value = dbSize.y / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+    if (mode === "plan" && !fly && MAP) { planView = computePlanView(); rigPose(MODES.plan, camera.position, controls.target); controls.update(); }
+    if (MAP) viewFit = computeOverviewFit();
+  }
+  addEventListener("resize", resize);
+  $("board").addEventListener("toggle", () => { if (MAP) viewFit = computeOverviewFit(); });   // an open board takes room
+  if (matchMedia("(max-width: 760px)").matches) $("board").open = false;
+  resize();
+  sizeMinimap();
+  loadMap(0);
+  requestAnimationFrame(frame);
+})();
+
+function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+</script>

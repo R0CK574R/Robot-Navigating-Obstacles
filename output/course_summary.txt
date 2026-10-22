@@ -1,0 +1,75 @@
+Grassland  (seed 3): 20 preset paths; on them the hill-blind shortest route takes 17% to 48% longer than the quickest
+Desert     (seed 3): 20 preset paths; on them the hill-blind shortest route takes 21% to 81% longer than the quickest
+Island     (seed 3): 20 preset paths; on them the hill-blind shortest route takes 14% to 61% longer than the quickest
+
+3D viewer: output/course_3d.html  (open in a browser)
+List a map's paths with: python main.py paths --map grassland
+
+Grassland (seed 3): quickest route over the hills vs the hill-blind shortest route
+  path from → to             start  destination  quickest  shortest  longer  dist m
+  P1   SW → Center         (75, 7)     (35, 39)      1:18      1:35    +21%      63
+  P2   W → N               (47, 7)      (3, 39)      1:21      1:54    +41%      62
+  P3   E → NW             (43, 71)     (15, 27)      1:21      1:59    +48%      62
+  P4   Center → W         (59, 59)      (55, 3)      1:27      2:02    +40%      65
+  P5   SE → S             (67, 91)     (75, 35)      1:29      2:05    +41%      66
+  P6   SE → Center        (83, 83)     (51, 43)      1:31      1:47    +17%      60
+  P7   NE → NW            (27, 75)     (15, 11)      1:36      2:10    +35%      75
+  P8   S → N              (75, 47)     (11, 39)      1:39      1:58    +19%      75
+  P9   SE → E             (91, 67)     (47, 91)      1:40      1:58    +18%      64
+  P10  NW → NE            (15, 19)     (15, 79)      1:41      2:05    +24%      75
+  P11  NW → S              (23, 3)     (67, 43)      1:41      2:19    +38%      73
+  P12  NE → E              (3, 91)     (59, 91)      1:47      2:27    +37%      70
+  P13  W → S              (35, 11)     (79, 55)      1:54      2:17    +20%      75
+  P14  SE → SW            (91, 91)     (91, 19)      1:57      2:41    +38%      83
+  P15  S → NE             (91, 59)     (15, 91)      2:12      3:12    +46%      97
+  P16  SW → NW             (83, 7)       (3, 7)      2:16      2:42    +20%      95
+  P17  W → NE              (39, 3)     (31, 91)      2:23      2:50    +19%     101
+  P18  SW → N              (91, 7)      (7, 59)      2:27      3:02    +23%     114
+  P19  NE → SE             (3, 83)     (91, 75)      2:29      3:27    +39%     113
+  P20  SE → NW            (91, 83)      (15, 3)      2:53      3:34    +24%     132
+
+Desert (seed 3): quickest route over the hills vs the hill-blind shortest route
+  path from → to             start  destination  quickest  shortest  longer  dist m
+  P1   N → Center         (11, 35)     (47, 63)      1:13      1:53    +55%      54
+  P2   S → SE             (83, 39)     (83, 91)      1:19      2:09    +64%      64
+  P3   NE → SE            (27, 91)     (79, 83)      1:20      1:42    +27%      59
+  P4   N → SE             (11, 63)     (67, 67)      1:25      1:42    +21%      70
+  P5   SW → SE            (79, 31)     (91, 83)      1:25      2:13    +57%      65
+  P6   E → N              (55, 91)      (7, 51)      1:25      2:24    +70%      72
+  P7   N → E               (3, 39)     (39, 75)      1:34      2:20    +50%      61
+  P8   NW → SW             (19, 7)      (91, 7)      1:34      2:32    +61%      81
+  P9   Center → NW        (39, 63)       (3, 3)      1:41      2:29    +48%      80
+  P10  NE → Center         (3, 75)     (47, 43)      1:42      2:20    +37%      72
+  P11  NW → SE             (3, 27)     (67, 83)      1:44      3:08    +81%      94
+  P12  SW → NW            (91, 27)      (3, 19)      1:44      2:41    +55%      94
+  P13  SE → NE            (91, 91)     (19, 87)      1:45      2:21    +35%      79
+  P14  SE → SW            (75, 91)      (83, 3)      1:50      3:10    +74%      98
+  P15  E → NW             (47, 83)      (27, 3)      1:58      3:15    +66%     107
+  P16  W → SE              (39, 7)     (91, 71)      2:00      3:10    +58%      95
+  P17  SW → N              (67, 3)     (15, 47)      2:05      2:39    +28%      82
+  P18  N → SW              (3, 63)     (87, 19)      2:16      3:24    +50%     110
+  P19  NW → E             (27, 23)     (39, 91)      2:20      3:13    +39%     108
+  P20  W → NE              (59, 3)      (3, 91)      2:44      4:21    +59%     144
+
+Island (seed 3): quickest route over the hills vs the hill-blind shortest route
+  path from → to             start  destination  quickest  shortest  longer  dist m
+  P1   E → N              (42, 75)     (21, 42)      0:50      0:59    +18%      43
+  P2   E → S              (42, 81)     (78, 60)      0:55      1:14    +34%      46
+  P3   N → E              (24, 60)     (48, 87)      0:57      1:07    +17%      44
+  P4   W → N               (39, 9)     (12, 36)      1:10      1:26    +23%      48
+  P5   N → NW              (9, 57)     (21, 21)      1:14      1:33    +27%      47
+  P6   N → W              (18, 48)      (51, 9)      1:14      1:32    +24%      60
+  P7   SW → SE            (69, 27)     (78, 72)      1:18      1:48    +39%      58
+  P8   N → E (2)           (3, 45)     (36, 78)      1:18      2:06    +61%      63
+  P9   SE → S             (66, 78)     (69, 39)      1:18      1:38    +25%      45
+  P10  W → N (2)          (60, 15)     (24, 51)      1:20      1:42    +28%      61
+  P11  E → Center         (54, 87)     (57, 36)      1:25      1:42    +20%      60
+  P12  S → W              (75, 48)      (33, 6)      1:28      2:13    +52%      70
+  P13  SE → SW            (72, 75)     (66, 21)      1:30      2:12    +46%      62
+  P14  N → SE             (12, 63)     (75, 66)      1:33      2:05    +35%      74
+  P15  NE → NW            (24, 75)     (12, 30)      1:33      1:47    +15%      56
+  P16  W → Center          (39, 3)     (54, 63)      1:37      1:55    +19%      70
+  P17  E → NW             (36, 87)     (27, 21)      1:40      2:33    +54%      77
+  P18  W → E               (45, 6)     (48, 81)      1:48      2:36    +45%      84
+  P19  NW → NE            (24, 15)     (18, 72)      1:55      2:11    +14%      70
+  P20  S → N              (78, 33)      (6, 36)      2:05      2:54    +39%      90
