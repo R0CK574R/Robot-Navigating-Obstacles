@@ -10,21 +10,79 @@ implementation of every planner.
 
 ![The viewer on the desert map: the tank on its quickest route, the planners ranked on the stage board](docs/screenshot.png)
 
-## Quick start
+## Run it yourself
+
+You need [Python 3.10 or newer](https://www.python.org/downloads/) and [Git](https://git-scm.com/downloads).
+Paste the lines one block at a time into a terminal (Terminal on Mac, PowerShell on Windows).
+
+**1. Download the project**
 
 ```bash
-pip install -r requirements.txt
-python main.py course                     # 3D viewer with all three maps -> output/course_3d.html (~15 s)
-python main.py paths --map island         # the 20 preset paths behind "More paths"
-python main.py route --map island --preset 3   # race the planners on preset P3
-python main.py route --map desert --start 80,10 --goal 12,85   # same START and FINISH as in the viewer
-python main.py score-route route.json     # score a route you drew in the viewer
-python main.py terrain-bench              # hills / slope limit / obstacles sweep (~25 s)
-python -m pytest -q
+git clone https://github.com/R0CK574R/Robot-Navigating-Obstacles.git
+cd Robot-Navigating-Obstacles
 ```
 
-Open `output/course_3d.html` in any browser. It needs internet once to load Three.js from a CDN.
-The original 2D grid version still works: `python main.py demo`, `python main.py benchmark`.
+**2. Install the packages** in a virtual environment
+
+Mac or Linux:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Windows (PowerShell):
+
+```powershell
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+If PowerShell says running scripts is disabled, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+once and activate again.
+
+**3. Build the 3D viewer** (takes about 15 seconds)
+
+```bash
+python main.py course
+```
+
+**4. Open it in your browser**
+
+Mac:
+
+```bash
+open output/course_3d.html
+```
+
+Windows:
+
+```powershell
+start output\course_3d.html
+```
+
+Or double-click `output/course_3d.html` in your file browser. The page needs internet the first
+time to load the 3D library (Three.js). Pick a map at the top left, then click **More paths** or
+**Set start & finish** to send the tank driving.
+
+> Just want to look? `output/course_3d.html` is already in the repo: download it and open it,
+> no Python needed.
+
+### More commands
+
+Run these from the same terminal, with the virtual environment active.
+
+| Command | What it does |
+|---|---|
+| `python main.py paths --map island` | List the 20 preset paths behind "More paths" |
+| `python main.py route --map island --preset 3` | Race the five planners and the shortest route on preset P3 |
+| `python main.py route --map desert --start 80,10 --goal 12,85` | Same, for your own START and FINISH (the `row, col` shown in the viewer) |
+| `python main.py score-route route.json` | Score a route you drew in the viewer and copied |
+| `python main.py terrain-bench` | Hills, slope limit and obstacle sweep (about 25 seconds) |
+| `python -m pytest -q` | Run the 139 tests |
+| `python main.py demo`, `python main.py benchmark` | The original 2D grid version |
 
 ## Using the viewer
 
