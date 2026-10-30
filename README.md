@@ -1,14 +1,15 @@
 # Rover Hill Course — 3D Off-Road Robot Navigation
 
 A tracked rover, a matte-black rhomboid tank with a hedgehog coat of steel spikes, finds its way
-across three hilly maps (grassland, desert dunes, and a tropical island) using five pathfinding
+across three hilly maps (grassland, desert dunes with oasis ponds, and a tropical island) using five pathfinding
 algorithms. Each map opens empty: add any of its 20 preset routes, or set your own start and
-finish, and the rover works out the quickest path over the hills while a follow drone films it.
+finish, and the rover works out the quickest path over the hills while a follow drone films it,
+at golden hour under a pastel sky.
 A dashed line shows the shortest route a robot that ignores hills would take, so you can see what
 reading the terrain buys you. Python generates the maps, picks the routes, and is the reference
 implementation of every planner.
 
-![The viewer on the desert map: the tank on its quickest route, the planners ranked on the stage board](docs/screenshot.png)
+![The viewer on the desert map at golden hour: the tank drives its quickest route past an oasis of palms toward the finish flag on a dune, under a sky-blue and pink sky, with the planners ranked on the stage board](docs/screenshot.png)
 
 ## Run it yourself
 
@@ -81,13 +82,13 @@ Run these from the same terminal, with the virtual environment active.
 | `python main.py route --map desert --start 80,10 --goal 12,85` | Same, for your own START and FINISH (the `row, col` shown in the viewer) |
 | `python main.py score-route route.json` | Score a route you drew in the viewer and copied |
 | `python main.py terrain-bench` | Hills, slope limit and obstacle sweep (about 25 seconds) |
-| `python -m pytest -q` | Run the 139 tests |
+| `python -m pytest -q` | Run the 141 tests |
 | `python main.py demo`, `python main.py benchmark` | The original 2D grid version |
 
 ## Using the viewer
 
-- **Pick a map**: Grassland, Desert or Island (top left). Every map opens empty, in Overview, with
-  the rover parked in the middle and no route on the board.
+- **Pick a map**: Grassland, Desert or Island (top left). Every map opens with a short fly-in to the
+  Overview, empty, with the rover parked in the middle and no route on the board.
 - **More paths** (next to Set start & finish): 20 routes per map, all optional. Tick one and its quickest
   path over the hills is drawn as a labelled line (P1–P20). The first path you add starts the rover
   on it. **Drive** on any row sends the rover along that path with the drone following, and the
@@ -122,8 +123,9 @@ Run these from the same terminal, with the virtual environment active.
   and **Copy your route** gives JSON you can score in Python.
 - **Cameras**: Drone (follows from ~15 m up), Top-down, Chase, Overview. The Overview fits the whole
   map into the space the panels leave free, so every path label stays visible. Far views draw
-  thicker lines, close views thin ones. The added paths, the route being driven and a drawn route
-  are remembered per map in your browser.
+  thicker lines, close views thin ones. Leaves and cacti between the camera and the rover dissolve,
+  so a plant never hides it. The added paths, the route being driven and a drawn route are
+  remembered per map in your browser.
 
 ## The rover
 
@@ -151,8 +153,68 @@ they read as steel on every map.
 | Map | Terrain | Surfaces (time factor) | Obstacles |
 |---|---|---|---|
 | Grassland | rolling green hills, up to 12 m | grass 1.0, tall grass 1.8 | trees, rock clusters |
-| Desert | dune field: gentle windward slopes, steep slip faces | firm sand 1.0, soft sand 2.4, rocky ground 1.3 | cacti, sandstone boulders |
+| Desert | dune field: gentle windward slopes, steep slip faces, three oases | firm sand 1.0, soft sand 2.4, rocky ground 1.3, oasis grass 1.0 | cacti, sandstone boulders, oasis ponds and palms |
 | Island | ragged coast, beach, central peak | grass 1.0, sand 1.6, jungle 2.0 | palm trees, rocks, the sea |
+
+The desert's oases are carved in Python, so they are real obstacles: the planners route around them
+and the browser and Python still agree. Each sits in the lowest broad ground between the dunes, stretched
+along the troughs like a real interdune lake, in a basin levelled over about 8 m so its shores stay
+drivable. It's filled to just below its rim, so it can never spill. Firm wet sand, a patchy ring of
+oasis grass and palms surround it.
+
+## How the water is drawn
+
+The island's sea and the desert's ponds share one water surface, drawn in a single pass. It is a
+Three.js `MeshStandardMaterial` (so it gets the sun, shadows, fog and a small sky map to reflect),
+with its shader extended in `viewer3d.html`:
+
+- **Ripples**: a few travelling waves, warped and stronger in gusty patches, bend the surface per pixel.
+- **Sun glitter**: a 128×128 tiling texture of random wave slopes, made once at startup and sampled
+  as two layers drifting different ways, supplies tiny facets that flash when they mirror the sun into
+  the camera. Its mipmaps calm it with distance, so far water doesn't flicker, and the broad sun
+  reflection is kept soft so the sparkles carry it.
+- **Clear water**: colour and opacity follow the depth, so the shallows show the sandy bed (with
+  moving caustics) and deep water turns dark teal. The depth is a vertex attribute: the water mesh
+  reuses the terrain's grid and triangle split, so it matches the ground exactly and the shoreline
+  falls where the ground meets the water.
+- **Foam**: a thin, lapping rim at the waterline (a wider surf line on the island).
+
+There's no second camera rendering a mirror reflection or the scene under the water, which is
+what usually makes water expensive. In software rendering, with the sea filling the screen, the
+full effect costs under 1 ms more per frame than a plain surface.
+
+## The sky, light and scenery
+
+Every texture below is drawn in code when the page starts. The page still loads nothing but Three.js.
+
+- **Sky**: a dome round the camera with a pastel gradient (sky blue overhead, lavender, light pink at
+  the horizon), a warm glow toward a low sun about 35° up, the sun's disc, and a slow deck of soft
+  clouds from a tiling noise texture. The light matches: a warm sun and a lavender sky fill, so
+  shadows go cool. When the camera looks down at a floating map, the dome tips up, so the map
+  floats in front of sky rather than the empty haze below the horizon. The island's sea runs to the
+  real horizon instead.
+- **Haze that matches the sky**: Three.js's fog shader chunks are replaced, so every material fades
+  toward the sky's colour in that direction, warmer toward the sun, and distant hills melt into the
+  horizon behind them. Water and the tank's steel reflect a small cube map of the same sky.
+- **Palms** on the island and round the oases are modelled on the Canary Island date palm: a stout
+  trunk with diamond leaf scars, the "pineapple" knob under the crown, and 36 feathery fronds on a
+  golden-angle spiral. Young fronds stand up and old ones hang down. Each frond is a V-shaped strip
+  textured with leaflets and alpha-tested, so it casts a leafy shadow.
+- **Broadleaf trees** have crowns of leafy clumps that shade as one soft mass, and the **cacti** are
+  ribbed saguaros with spines along the ribs. Leaf alpha is scaled up with the mipmap level, so
+  crowns stay full from far away instead of thinning to twigs.
+- **Wind**: palms, tree crowns and grass sway in the vertex shader, after instancing, so gusts roll
+  across the map and the shadows sway with them.
+- **Ground**: smooth-shaded and textured per pixel from world position. Grass is mottled at three
+  scales, sand carries wind ripples (crests across the wind, gone on steep faces and far away), and
+  steep or rocky ground is lumpy. Grassy cells grow seven-blade tufts, taller and denser in tall
+  grass and jungle, so slow ground reads at a glance.
+- **Shadows**: the sun's 2048×2048 shadow map covers the whole map from afar and a tight box round
+  the rover from close by, so its spikes and treads cast crisp shadows. The box moves in whole
+  shadow-map texels, so shadow edges don't crawl as it follows.
+- **Quality governor**: if frames stay under about 40 fps for a few seconds, the viewer steps down
+  once at a time: render scale, then soft leaf edges, then grass and shadow-map size. Add
+  `?quality=high` to the address to keep full quality.
 
 ## Cost model: drive time
 
@@ -208,13 +270,13 @@ Hand-drawn routes are scored by the same rules in both (`robotnav.terrain.evalua
 
 | File | What it does |
 |---|---|
-| `robotnav/terrain.py` | Height maps, drive-time model, the three themed maps (`make_map`), `plan_pair`, `shortest_route`, `preset_routes`, `evaluate_route` |
+| `robotnav/terrain.py` | Height maps, drive-time model, the three themed maps (`make_map`) and the desert's oases, `plan_pair`, `shortest_route`, `preset_routes`, `evaluate_route` |
 | `robotnav/algorithms.py` | BFS, Dijkstra, A*, Weighted A*, Greedy — one shared priority-queue engine |
 | `robotnav/scene3d.py` | Exports the three maps and their preset paths into the self-contained viewer |
-| `robotnav/viewer3d.html` | Three.js viewer: maps, planners in the browser, preset paths, picking, drawing, drone camera, the spiked tank |
+| `robotnav/viewer3d.html` | Three.js viewer: maps, sky, water, palms and trees, planners in the browser, preset paths, picking, drawing, drone camera, the spiked tank |
 | `robotnav/terrain_bench.py` | Sweeps hill height, slope limit and obstacle density |
 | `robotnav/grid.py`, `visualize.py`, `benchmark.py` | Original 2D grid world, plots and benchmark |
-| `tests/` | 139 checks: optimality on every map, the shortest route, all 20 presets per map, grade limit, water, route rules, map rebuilds, the `row,col` command line |
+| `tests/` | 141 checks: optimality on every map, the shortest route, all 20 presets per map, the desert's oases, grade limit, water, route rules, map rebuilds, the `row,col` command line |
 
 ## Findings
 
@@ -224,20 +286,20 @@ Over each map's 20 preset paths (seed 3), how much longer each approach takes th
 | Map | Weighted A* | Greedy | BFS | Shortest route |
 |---|---|---|---|---|
 | Grassland | +8% (up to +22%) | +38% (up to +65%) | +27% (up to +52%) | +29% (up to +48%) |
-| Desert | +5% (up to +43%) | +58% (up to +138%) | +53% (up to +110%) | +55% (up to +81%) |
+| Desert | +9% (up to +34%) | +56% (up to +86%) | +47% (up to +100%) | +42% (up to +82%) |
 | Island | +6% (up to +40%) | +32% (up to +79%) | +28% (up to +66%) | +27% (up to +61%) |
 
-A* searched a median of 950–2,100 cells per route, Dijkstra 3,200–6,300, Weighted A* 160–300 and
+A* searched a median of 950–2,100 cells per route, Dijkstra 3,200–6,300, Weighted A* 160–320 and
 Greedy 50–70.
 
-- **Reading the hills matters most in the desert**: soft sand on the dune crests and steep slip
-  faces make the hill-blind shortest route take a median 55% longer, and up to 81% longer.
+- **Reading the hills matters most in the desert**: soft sand on the dune crests, steep slip faces
+  and the oases make the hill-blind shortest route take a median 42% longer, and up to 82% longer.
 - **Short isn't quick**: on these routes the shortest route always loses to A*, though it drives
   fewer metres.
 - **Greedy** heads straight for the goal and often ends up slower than even the hill-blind
-  shortest route. In the desert it once took 2.4× the optimal time.
-- **Weighted A\*** is the best trade-off: usually within 5–8% of the optimum while searching about
-  a sixth of A*'s cells.
+  shortest route. In the desert it once took 1.9× the optimal time.
+- **Weighted A\*** is the best trade-off: usually within 6–9% of the optimum while searching about
+  a sixth of A*'s cells or fewer.
 
 From the terrain benchmark (64 m courses, 12 trials per level):
 

@@ -27,6 +27,8 @@ def map_scene(t: Terrain) -> dict:
         heights=[float(v) for v in t.height.ravel()],        # exact, so the browser plans like Python
         surface=[int(v) for v in t.surface.ravel()],
         obstacle=[int(v) for v in t.obstacle.ravel()],       # 0 open, 1 rock, 2 tree/cactus/palm, 3 water
+        ponds=[dict(level=float(p["level"]), cells=[int(r * t.cols + c) for r, c in p["cells"]])
+               for p in t.ponds],                            # desert oases: water level and cells (flat index)
         surfaces=[dict(name=n, cost=float(c)) for n, c in zip(t.surface_names, t.surface_costs)],
         start=[int(v) for v in t.start], goal=[int(v) for v in t.goal],
         presets=[dict(name=p["name"], start=list(p["start"]), goal=list(p["goal"]), time=float(p["time"]),

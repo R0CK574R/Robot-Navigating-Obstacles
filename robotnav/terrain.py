@@ -46,6 +46,7 @@ class Terrain(Grid):
     surface_costs: tuple = (SURFACE_COST[GRASS], SURFACE_COST[MUD], SURFACE_COST[GRAVEL])
     surface_names: tuple = ("Grass", "Mud", "Gravel")
     sea_level: float | None = None     # island maps: cells below this are water
+    ponds: list = field(default_factory=list)  # desert oases: [{"level": m, "cells": [(r, c), ...]}], all WATER
     checkpoints: list = field(default_factory=list)
     meta: dict = field(default_factory=dict)   # generation parameters, enough to rebuild the course
 
@@ -282,11 +283,94 @@ def _grassland(size, rng):
     obstacle = np.zeros((size, size), dtype=np.int8)
     _scatter_rocks(obstacle, rng, 0.02)
     obstacle[(rng.random((size, size)) < 0.035) & (obstacle == NONE)] = TREE
-    return h, surface, obstacle, (1.0, 1.8), ("Grass", "Tall grass"), None
+    return h, surface, obstacle, (1.0, 1.8), ("Grass", "Tall grass"), None, []
+
+
+def _oases(h, surface, obstacle, rng, wind):
+    """Desert oases: two or three ponds in the lowest broad ground between the dunes.
+
+    Each pond is a basin stretched along the dune troughs (like a real interdune lake), carved into
+    a gently levelled apron so its shores stay drivable, and filled to just below its rim: the pond
+    is every cell below the water level that connects to the basin floor, so it never spills. Round
+    it lie firm wet sand, a patchy ring of oasis grass, and palms. Changes the arrays in place and
+    returns the ponds as [{"level": metres, "cells": [(r, c), ...]}].
+    """
+    from scipy.ndimage import distance_transform_edt, label, uniform_filter
+    size = h.shape[0]
+    k = size / 96                                                     # distances scale with the map
+    yy, xx = np.mgrid[0:size, 0:size].astype(float)
+    ok = np.zeros((size, size), bool)
+    m = int(13 * k)
+    ok[m:size - m, m:size - m] = True                                 # away from the map edges
+    for r, c in _endpoints("desert", h, obstacle, None):              # and from the default flags
+        ok &= np.hypot(yy - r, xx - c) > 24 * k
+    broad = uniform_filter(h, int(9 * k) | 1, mode="nearest")        # broad low ground
+    cand = np.argwhere(ok)
+    sites = []
+    for j in np.argsort(broad[ok] + rng.uniform(0, 0.6, len(cand)), kind="stable"):
+        cy, cx = (int(v) for v in cand[j])
+        if all(math.hypot(cy - p[0], cx - p[1]) >= 30 * k for p in sites):
+            sites.append((cy, cx))
+        if len(sites) == (3 if size >= 64 else 2):
+            break
+
+    trough = (-math.sin(wind), math.cos(wind))                        # (x, y) along the dune troughs
+    ponds, water = [], np.zeros((size, size), bool)
+    for cy, cx in sites:
+        a = rng.uniform(9.5, 12.5) * k                                # half-length and half-width
+        b = a * rng.uniform(0.5, 0.65)
+        tilt = rng.uniform(-0.35, 0.35)
+        ux = trough[0] * math.cos(tilt) - trough[1] * math.sin(tilt)
+        uy = trough[0] * math.sin(tilt) + trough[1] * math.cos(tilt)
+        along = (xx - cx) * ux + (yy - cy) * uy
+        across = -(xx - cx) * uy + (yy - cy) * ux
+        ang = np.arctan2(across / b, along / a)
+        wobble = sum(rng.uniform(0.04, 0.1) * np.sin(f * ang + rng.uniform(0, 2 * np.pi)) for f in (2, 3, 5))
+        d = np.hypot(along / a, across / b) / (1 + wobble)            # 1 on the basin's rim
+        hc = h.copy()
+        floor = np.percentile(hc[d < 1.2], 30)
+        s = np.clip(1 - (d - 1) * b / 8.0, 0, 1)                     # level an apron that fades out over ~8 m
+        w = 0.9 * s * s * (3 - 2 * s)
+        hc = hc * (1 - w) + np.minimum(hc, floor + 0.6) * w
+        hc -= rng.uniform(1.4, 1.9) * np.clip(1 - d * d, 0, None) ** 1.5    # the basin
+        bottom = np.unravel_index(np.argmin(np.where(d < 0.5, hc, np.inf)), hc.shape)
+        level = hc[(d > 0.95) & (d < 1.3)].min() - 0.1               # just below the lowest point of the rim
+        pond = None
+        while level > hc[bottom] + 0.6:                               # at least 0.6 m deep
+            lab, _ = label(hc < level, structure=np.ones((3, 3)))
+            region = lab == lab[bottom]
+            if lab[bottom] and not (region & (d > 1.25)).any():      # stays inside its basin
+                pond = region
+                break
+            level -= 0.05
+        if pond is None or pond.sum() < 12 * k * k:
+            continue
+        h[:] = hc
+        water |= pond
+        ponds.append(dict(level=float(level), cells=[(int(r), int(c)) for r, c in np.argwhere(pond)]))
+
+    if ponds:
+        dist = distance_transform_edt(~water)                         # metres to the nearest pond
+        patchy = _fractal_noise(size, size, rng, octaves=3, base=6)
+        grass = ~water & (dist > 1.5) & (dist <= 2.0 + 2.5 * patchy)
+        obstacle[water] = WATER
+        obstacle[~water & (dist <= 1.5)] = NONE                      # a clean shoreline
+        obstacle[grass] = NONE
+        surface[water | (dist <= 1.5)] = 0                            # firm wet sand (and the pond beds)
+        surface[grass] = 3                                            # oasis grass
+        gy, gx = np.gradient(h)
+        spots = np.argwhere(grass & (dist >= 2.0) & (dist <= 3.6) & (np.hypot(gx, gy) < 0.35))
+        palms = []
+        for j in rng.permutation(len(spots))[: max(6, len(spots) // 4)]:
+            r, c = (int(v) for v in spots[j])
+            if all(math.hypot(r - p[0], c - p[1]) >= 2.3 for p in palms):
+                palms.append((r, c))
+                obstacle[r, c] = TREE                                 # palms (drawn as palms near the water)
+    return ponds
 
 
 def _desert(size, rng):
-    """Dune field: gentle windward slopes, steep slip faces, soft sand on the crests, rocky flats."""
+    """Dune field: gentle windward slopes, steep slip faces, soft sand on the crests, rocky flats, oasis ponds."""
     yy, xx = np.mgrid[0:size, 0:size].astype(float)
     swell = _fractal_noise(size, size, rng, octaves=4, base=3) * 4.0
     wind = rng.uniform(0, np.pi)
@@ -302,7 +386,10 @@ def _desert(size, rng):
     obstacle = np.zeros((size, size), dtype=np.int8)
     _scatter_rocks(obstacle, rng, 0.035, ok=rocky | (rng.random((size, size)) < 0.25))
     obstacle[(rng.random((size, size)) < 0.012) & (obstacle == NONE) & (surface == 0)] = TREE   # cacti
-    return h, surface, obstacle, (1.0, 2.4, 1.3), ("Firm sand", "Soft sand", "Rocky ground"), None
+    # oases last, from their own random stream, so the dunes, rocks and cacti stay as they were
+    ponds = _oases(h, surface, obstacle, np.random.default_rng(int(rng.integers(1 << 62))), wind)
+    return (h, surface, obstacle, (1.0, 2.4, 1.3, 1.0), ("Firm sand", "Soft sand", "Rocky ground", "Oasis grass"),
+            None, ponds)
 
 
 def _island(size, rng):
@@ -326,7 +413,7 @@ def _island(size, rng):
     _scatter_rocks(obstacle, rng, 0.015, ok=~water)
     obstacle[(rng.random((size, size)) < 0.03) & (obstacle == NONE) & ~water] = TREE           # palms
     obstacle[water] = WATER
-    return h, surface, obstacle, (1.0, 1.6, 2.0), ("Grass", "Sand", "Jungle"), sea
+    return h, surface, obstacle, (1.0, 1.6, 2.0), ("Grass", "Sand", "Jungle"), sea, []
 
 
 def _endpoints(theme, h, obstacle, sea):
@@ -348,14 +435,14 @@ def make_map(theme: str = "grassland", size: int = 96, seed: int | None = None,
         raise ValueError(f"theme must be one of {THEMES}")
     rng = np.random.default_rng(seed)
     gen = {"grassland": _grassland, "desert": _desert, "island": _island}[theme]
-    h, surface, obstacle, costs, names, sea = gen(size, rng)
+    h, surface, obstacle, costs, names, sea, ponds = gen(size, rng)
     start, goal = _endpoints(theme, h, obstacle, sea)
     for r, c in (start, goal):                 # keep a clear pad around the default flags
         pad = obstacle[max(0, r - 2):r + 3, max(0, c - 2):c + 3]
         pad[pad != WATER] = NONE
     return Terrain(blocked=obstacle != NONE, start=start, goal=goal, diagonal=True,
                    height=h, surface=surface, obstacle=obstacle, max_grade=max_grade,
-                   surface_costs=costs, surface_names=names, sea_level=sea,
+                   surface_costs=costs, surface_names=names, sea_level=sea, ponds=ponds,
                    meta=dict(theme=theme, size=size, seed=seed, max_grade=max_grade))
 
 

@@ -2,6 +2,7 @@ import math
 
 import numpy as np
 import pytest
+from scipy.ndimage import binary_dilation
 
 from robotnav import astar, dijkstra
 from robotnav.terrain import (THEMES, WATER, evaluate_route, is_reachable, make_map, plan_pair, preset_routes,
@@ -29,6 +30,26 @@ def test_island_sea_is_impassable():
     water = t.obstacle == WATER
     assert water.any() and t.blocked[water].all()
     assert (t.height[water] < t.sea_level).all()
+
+
+@pytest.mark.parametrize("size", [96, 48])
+def test_desert_oases_are_closed_ponds_the_rover_can_reach(size):
+    from dataclasses import replace
+    t = solvable_map("desert", seed=3, size=size)
+    assert len(t.ponds) >= 2
+    water = np.zeros(t.blocked.shape, bool)
+    for p in t.ponds:
+        cells = np.array(p["cells"])
+        assert (t.obstacle[cells[:, 0], cells[:, 1]] == WATER).all()
+        assert (t.height[cells[:, 0], cells[:, 1]] < p["level"]).all()              # under water
+        assert p["level"] - t.height[cells[:, 0], cells[:, 1]].min() >= 0.6         # and deep enough to read as a pond
+        pond = np.zeros(t.blocked.shape, bool); pond[cells[:, 0], cells[:, 1]] = True
+        rim = binary_dilation(pond, np.ones((3, 3), bool)) & ~pond
+        assert (t.height[rim] >= p["level"]).all()                                  # a closed basin: it can't spill
+        assert any(is_reachable(replace(t, goal=tuple(map(int, c)))) for c in np.argwhere(rim & ~t.blocked))
+        water |= pond
+    assert (water == (t.obstacle == WATER)).all()                                   # all the desert's water is ponds
+    assert not water[t.start] and not water[t.goal]
 
 
 def test_astar_is_quickest_on_every_map(themed):

@@ -366,30 +366,43 @@ const SCENE = /*__SCENE__*/null;
     { key: "short", name: "Shortest route", color: "#f4f1e8", dashed: true }];
 
   // Look of each map. Costs and terrain come from Python; this is only how they are drawn.
+  // Skies are pastel, golden-hour skies: sky blue overhead, lavender, then light pink at the horizon, with a warm glow
+  // toward a low sun (about 35° up). Colours are sRGB, from the zenith down: zen, top, mid, low, hor; void is below
+  // the horizon (the haze round a map seen from above); glow is the sun's; cloud and shade light and shadow the clouds.
   const THEMES = {
     grassland: {
-      swatch: "#5aa83c", sky: ["#3f7cc4", "#9cc6ec", "#e6f2fa"], fog: "#d3e5f1", skirt: "#4b3a28",
-      sun: ["#fff4e0", 1.25, [-0.6, 0.95, -0.35]], hemi: ["#e8f3ff", "#41602c", 0.8],
+      swatch: "#5aa83c", skirt: "#4b3a28", ground: [0, 0], tufts: [[2, 0.26], [3.2, 0.5]],         // ground detail per surface: 0 grass, 1 sand, 2 rock
+      sky: { zen: "#4d8fe0", top: "#93bff0", mid: "#cdb6ec", low: "#ffbad5", hor: "#ffd3dc", void: "#e9b0d2", glow: "#ffd7ad",
+             cloud: "#fff6f6", shade: "#cdb9e3" },
+      sun: ["#ffdcb6", 1.55, [-0.864, 0.7, -0.504]], hemi: ["#c9cff7", "#6b5c3c", 0.8],
       surf: [["#3a7a2a", "#74ab47"], ["#285c22", "#40782e"]], steep: "#2a5222",
       rock: "#8f8d86", tree: "broadleaf", treeName: "tree", leaf: "#3d8a33", trunk: "#5c4330", marks: "#2c4a20",
       dust: [{ rate: 7, col: "#b9c48a", size: 0.25, grow: 0.7, life: 1.2, a: 0.22, grav: -0.1, up: 0.3, upR: 0.4 },
              { rate: 16, col: "#5f9a3d", size: 0.12, grow: 0.05, life: 0.7, a: 0.9, grav: 6, up: 1.2, upR: 1.0 }],
     },
     desert: {
-      swatch: "#e0b46c", sky: ["#5d93c9", "#c8d9e4", "#f3e2c4"], fog: "#efdcbd", skirt: "#9a6a3c",
-      sun: ["#fff0d2", 1.4, [-0.7, 0.8, 0.25]], hemi: ["#fff3df", "#9a7448", 0.7],
-      surf: [["#c99a5b", "#e2bf86"], ["#e4c48e", "#f4dcab"], ["#9c6a43", "#ba8659"]], steep: "#b07a48",
+      swatch: "#e0b46c", skirt: "#9a6a3c", ground: [1, 1, 2, 0], tufts: [null, null, null, [2.4, 0.3]],
+      sky: { zen: "#5295dc", top: "#99c2ee", mid: "#d4b7e6", low: "#ffbacb", hor: "#ffd3cf", void: "#edb2c6", glow: "#ffd09a",
+             cloud: "#fff5ef", shade: "#d3bbdb" },
+      sun: ["#ffd8ad", 1.6, [-0.942, 0.7, 0.336]], hemi: ["#d3cdf2", "#9a7448", 0.72],
+      surf: [["#c99a5b", "#e2bf86"], ["#e4c48e", "#f4dcab"], ["#9c6a43", "#ba8659"], ["#5f8a36", "#86ad4c"]], steep: "#b07a48",
       rock: "#b5774a", tree: "cactus", treeName: "cactus", leaf: "#4f8a3f", trunk: "#4f8a3f", marks: "#9b6f40",
+      // oasis ponds: clear water over a sand bed, wet sand at the edge, palms, reeds and floating leaves
+      water: { shallow: "#14c4b6", deep: "#0a4558", foam: "#eef4ef", foamWidth: 0.05, chop: 0.55, clear: 0.32 }, seabed: "#a7865a", wet: "#93703f",
+      oasis: { trunk: "#8f7254", leaf: "#3f8236", reed: "#6e8434", pad: "#3e8a2c", treeName: "palm tree" },
       dust: [{ rate: 18, col: "#e6cf9f", size: 0.32, grow: 1.0, life: 1.4, a: 0.32, grav: -0.12, up: 0.4, upR: 0.5 },
              { rate: 32, col: "#f0dcb0", size: 0.4, grow: 1.3, life: 1.6, a: 0.38, grav: -0.12, up: 0.5, upR: 0.6 },
-             { rate: 12, col: "#b49a80", size: 0.26, grow: 0.9, life: 1.2, a: 0.3, grav: -0.1, up: 0.4, upR: 0.5 }],
+             { rate: 12, col: "#b49a80", size: 0.26, grow: 0.9, life: 1.2, a: 0.3, grav: -0.1, up: 0.4, upR: 0.5 },
+             { rate: 12, col: "#7fa64a", size: 0.12, grow: 0.05, life: 0.7, a: 0.9, grav: 6, up: 1.1, upR: 0.9 }],
     },
     island: {
-      swatch: "#2bb3c0", sky: ["#2f86d6", "#8fd0f0", "#e8f8fb"], fog: "#d2edf3", skirt: "#7a6a4a",
-      sun: ["#fff6e6", 1.3, [-0.5, 0.95, -0.4]], hemi: ["#e6f7ff", "#3c6a4a", 0.8],
+      swatch: "#2bb3c0", skirt: "#7a6a4a", ground: [0, 1, 0], tufts: [[2, 0.26], null, [3.2, 0.45]],
+      sky: { zen: "#3d8de2", top: "#8ac0f3", mid: "#c8b5ef", low: "#ffb8d6", hor: "#ffd3de", void: "#dfaedb", glow: "#ffd4ae",
+             cloud: "#fff6f8", shade: "#c8b7e4" },
+      sun: ["#ffdfbd", 1.5, [-0.781, 0.7, -0.625]], hemi: ["#c6d2f8", "#3c6a4a", 0.82],
       surf: [["#4a8f37", "#78b250"], ["#e6d39f", "#f0e2b8"], ["#235c28", "#3a7631"]], steep: "#5a5f4a",
-      rock: "#55535a", tree: "palm", treeName: "palm tree", leaf: "#3f9a3a", trunk: "#8a6a45", marks: "#6b5a3a",
-      water: "#1fa5b8", seabed: "#c9b98a",
+      rock: "#55535a", tree: "palm", treeName: "palm tree", leaf: "#35803a", trunk: "#8a7056", marks: "#6b5a3a",
+      water: { shallow: "#2fd0c4", deep: "#08406c", foam: "#ffffff", foamWidth: 0.16, chop: 1.0, clear: 0.34 }, seabed: "#c9b98a", wet: "#b39a68",
       dust: [{ rate: 7, col: "#b9c48a", size: 0.25, grow: 0.7, life: 1.2, a: 0.22, grav: -0.1, up: 0.3, upR: 0.4 },
              { rate: 22, col: "#efe2bd", size: 0.32, grow: 1.0, life: 1.4, a: 0.34, grav: -0.12, up: 0.4, upR: 0.5 },
              { rate: 14, col: "#3f7a32", size: 0.12, grow: 0.05, life: 0.7, a: 0.9, grav: 6, up: 1.2, upR: 1.0 }],
@@ -399,6 +412,7 @@ const SCENE = /*__SCENE__*/null;
   // ---------------------------------------------------------------- the current map (reassigned by loadMap)
   let MAP = null, THEME = null, R = 0, C = 0, H = null, SURF = null, OBS = null, SCOST = null;
   let PAL = null, DUSTS = null, hMin = 0, hMax = 1, START = null, GOAL = null;
+  let WL = null, WDIST = null;                    // per cell: water surface height (NaN on land), steps to the nearest water
   const hAt = (r, c) => H[r * C + c];
   const toX = c => c - (C - 1) / 2, toZ = r => r - (R - 1) / 2;
   // Height of the rendered surface, using the same triangle split as THREE.PlaneGeometry.
@@ -412,9 +426,36 @@ const SCENE = /*__SCENE__*/null;
   function normalAt(x, z, e) {
     return _n.set(groundH(x - e, z) - groundH(x + e, z), 2 * e, groundH(x, z - e) - groundH(x, z + e)).normalize();
   }
+  function waterLevels() {                        // the sea and every pond, as one water height per cell
+    WL = new Float32Array(R * C).fill(NaN);
+    if (MAP.sea != null) for (let i = 0; i < OBS.length; i++) if (OBS[i] === 3) WL[i] = MAP.sea;
+    for (const p of MAP.ponds || []) for (const i of p.cells) WL[i] = p.level;
+    WDIST = new Uint8Array(R * C).fill(255);        // 8-neighbour steps to water (breadth-first, up to 8)
+    let front = [];
+    for (let i = 0; i < WL.length; i++) if (WL[i] === WL[i]) { WDIST[i] = 0; front.push(i); }
+    for (let d = 1; d <= 8 && front.length; d++) {
+      const next = [];
+      for (const i of front) {
+        const r = (i / C) | 0, c = i - r * C;
+        for (let k = 0; k < 8; k++) {
+          const rr = r + NB_R[k], cc = c + NB_C[k];
+          if (rr < 0 || cc < 0 || rr >= R || cc >= C) continue;
+          const j = rr * C + cc;
+          if (WDIST[j] === 255) { WDIST[j] = d; next.push(j); }
+        }
+      }
+      front = next;
+    }
+  }
+  function waterAt(x, z) {                         // water surface height at a point, or -Infinity on land
+    const r = Math.round(z + (R - 1) / 2), c = Math.round(x + (C - 1) / 2);
+    if (r < 0 || c < 0 || r >= R || c >= C) return MAP.sea != null ? MAP.sea : -Infinity;
+    const w = WL[r * C + c];
+    return w === w ? w : -Infinity;
+  }
   function groundRGB(i) {                         // sRGB colour of a cell (terrain mesh and course map)
     const r = (i / C) | 0, c = i - r * C, h = H[i];
-    if (OBS[i] === 3) return mix(PAL.seabed, PAL.water, clamp((MAP.sea - h) / 3, 0, 1) * 0.6);
+    if (OBS[i] === 3) return mix(PAL.seabed, PAL.waterDeep, clamp((WL[i] - h) / 3, 0, 1) * 0.6);   // the bed under the water
     const gx = (H[r * C + Math.min(c + 1, C - 1)] - H[r * C + Math.max(c - 1, 0)]) / 2;
     const gz = (H[Math.min(r + 1, R - 1) * C + c] - H[Math.max(r - 1, 0) * C + c]) / 2;
     const slope = Math.hypot(gx, gz), lo = MAP.sea != null ? MAP.sea : hMin;
@@ -422,6 +463,7 @@ const SCENE = /*__SCENE__*/null;
     let col = mix(pair[0], pair[1], clamp((h - lo) / ((hMax - lo) || 1), 0, 1));
     if (slope > MAP.max_grade) col = mix(col, PAL.steep, 0.6);
     else if (slope > MAP.max_grade * 0.7) col = mix(col, PAL.steep, 0.3);
+    if (PAL.wet && WDIST[i] <= 2) col = mix(col, PAL.wet, WDIST[i] === 1 ? 0.55 : 0.22);   // wet sand at the water's edge
     return col;
   }
 
@@ -434,28 +476,170 @@ const SCENE = /*__SCENE__*/null;
   renderer.outputEncoding = THREE.sRGBEncoding;
   stage.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
-  const skyCv = document.createElement("canvas"); skyCv.width = 2; skyCv.height = 256;
-  const skyTex = new THREE.CanvasTexture(skyCv); skyTex.encoding = THREE.sRGBEncoding;
-  scene.background = skyTex;
-  scene.fog = new THREE.Fog(0xffffff, 90, 230);
+  scene.fog = new THREE.Fog(0xffffff, 90, 230);   // only its near and far are used: the haze takes the sky's colour (below)
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1500);
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
   const courseCenter = new THREE.Vector3();
   const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0008;
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0002; sun.shadow.normalBias = 0.03;
   scene.add(sun, sun.target);
+
+  // The sky: a pastel gradient, the low sun's warm glow and a slow deck of soft clouds, drawn on a dome round the
+  // camera. Every fogged material shares the gradient (fog chunks below), so distant ground fades into exactly the
+  // sky behind it, warmer toward the sun. Looking down at the map, with no horizon in view, the dome tips up (uLift),
+  // so the map floats in front of sky instead of the empty haze below the horizon. Colours are sRGB throughout:
+  // three.js r128 applies fog after the output encoding.
+  const SKY_U = { uSkyZen: { value: new THREE.Color() }, uSkyTop: { value: new THREE.Color() }, uSkyMid: { value: new THREE.Color() },
+    uSkyLow: { value: new THREE.Color() }, uSkyHor: { value: new THREE.Color() }, uSkyVoid: { value: new THREE.Color() },
+    uSkyGlow: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+    uLiftAxis: { value: new THREE.Vector3(1, 0, 0) }, uLift: { value: 0 } };
+  const SKY_GLSL = `
+uniform vec3 uSkyZen, uSkyTop, uSkyMid, uSkyLow, uSkyHor, uSkyVoid, uSkyGlow, uSunDir, uLiftAxis;
+uniform float uLift;
+vec3 skyLift(vec3 d) {                              // turn a view direction up by uLift about the camera's right
+  float c = cos(uLift), s = sin(uLift);
+  return d * c + cross(uLiftAxis, d) * s + uLiftAxis * (dot(uLiftAxis, d) * (1.0 - c));
+}
+vec3 skyBase(vec3 d) {                              // the gradient and the sun's broad glow, in direction d
+  float h = d.y;
+  vec3 c = mix(uSkyHor, uSkyLow, smoothstep(0.0, 0.07, h));
+  c = mix(c, uSkyMid, smoothstep(0.05, 0.24, h));
+  c = mix(c, uSkyTop, smoothstep(0.18, 0.52, h));
+  c = mix(c, uSkyZen, smoothstep(0.5, 1.0, h));
+  c = mix(c, uSkyVoid, 1.0 - smoothstep(-0.5, 0.0, h));   // below the horizon (GLSL wants edge0 < edge1)
+  float az = max(dot(normalize(d.xz + vec2(1e-6, 0.0)), normalize(uSunDir.xz + vec2(1e-6, 0.0))), 0.0);
+  float glow = 0.42 * az * az * az * exp(-abs(h) * 6.0) + 0.3 * pow(max(dot(d, uSunDir), 0.0), 6.0);
+  return mix(c, uSkyGlow, min(glow, 0.85));
+}
+`;
+  THREE.ShaderChunk.fog_pars_vertex = "#ifdef USE_FOG\n  varying float fogDepth;\n  varying vec3 vFogDir;\n#endif\n";
+  THREE.ShaderChunk.fog_vertex = `#ifdef USE_FOG
+  fogDepth = - mvPosition.z;
+  vFogDir = vec3(dot(viewMatrix[0].xyz, mvPosition.xyz), dot(viewMatrix[1].xyz, mvPosition.xyz), dot(viewMatrix[2].xyz, mvPosition.xyz));   // camera → point, in the world
+#endif
+`;
+  THREE.ShaderChunk.fog_pars_fragment = "#ifdef USE_FOG\n  varying float fogDepth;\n  varying vec3 vFogDir;\n  uniform float fogNear, fogFar;\n" + SKY_GLSL + "#endif\n";
+  THREE.ShaderChunk.fog_fragment = `#ifdef USE_FOG
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, skyBase(skyLift(normalize(vFogDir))), smoothstep(fogNear, fogFar, fogDepth));
+#endif
+`;
+  const skyUniforms = sh => Object.assign(sh.uniforms, SKY_U);
+  THREE.Material.prototype.onBeforeCompile = skyUniforms;  // so every material can draw the haze (materials with their
+                                                            // own onBeforeCompile call skyUniforms themselves)
+  // A tiling fractal noise texture (two independent fields in R and G), for the clouds and the ground's detail.
+  let noiseTexture = null;
+  function noiseTex() {
+    if (noiseTexture) return noiseTexture;
+    const N = 256, data = new Uint8Array(N * N * 4), field = new Float32Array(N * N);
+    for (const [ch, seed] of [[0, 1337], [1, 4711]]) {
+      const rnd = mulberry(seed); field.fill(0);
+      let amp = 1;
+      for (const P of [4, 8, 16, 32, 64]) {          // lattice periods that divide the tile, so it repeats seamlessly
+        const lat = Float32Array.from({ length: P * P }, rnd), cell = N / P;
+        for (let y = 0; y < N; y++) {
+          const fy = y / cell, y0 = Math.floor(fy), ty = fy - y0, sy = ty * ty * (3 - 2 * ty), r0 = (y0 % P) * P, r1 = ((y0 + 1) % P) * P;
+          for (let x = 0; x < N; x++) {
+            const fx = x / cell, x0 = Math.floor(fx), tx = fx - x0, sx = tx * tx * (3 - 2 * tx), c0 = x0 % P, c1 = (x0 + 1) % P;
+            const a = lat[r0 + c0], b = lat[r0 + c1], c = lat[r1 + c0], d = lat[r1 + c1];
+            field[y * N + x] += amp * (a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy);
+          }
+        }
+        amp *= 0.5;
+      }
+      let lo = Infinity, hi = -Infinity;
+      for (const v of field) { if (v < lo) lo = v; if (v > hi) hi = v; }
+      for (let i = 0; i < N * N; i++) data[i * 4 + ch] = Math.round((field[i] - lo) / (hi - lo) * 255);
+    }
+    for (let i = 0; i < N * N; i++) data[i * 4 + 3] = 255;
+    const t = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true; t.needsUpdate = true;
+    return (noiseTexture = t);
+  }
+  const skyClock = { value: 0 };
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.ShaderMaterial({
+    uniforms: Object.assign({ uCloudTex: { value: noiseTex() }, uSkyTime: skyClock, uCloudLit: { value: new THREE.Color() },
+                              uCloudShade: { value: new THREE.Color() } }, SKY_U),
+    vertexShader: `varying vec3 vDir;
+void main() {
+  vDir = position;                                  // the dome is centred on the camera
+  vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  gl_Position = p.xyww;                             // on the far plane: drawn last, only where nothing else is
+}`,
+    fragmentShader: SKY_GLSL + `
+uniform sampler2D uCloudTex;
+uniform float uSkyTime;
+uniform vec3 uCloudLit, uCloudShade;
+varying vec3 vDir;
+void main() {
+  vec3 d = skyLift(normalize(vDir));
+  vec3 c = skyBase(d);
+  float sd = dot(d, uSunDir);
+  c = mix(c, vec3(1.0, 0.95, 0.86), pow(max(sd, 0.0), 160.0) * 0.6);         // a bright halo round the sun
+  c = mix(c, vec3(1.0, 0.985, 0.95), smoothstep(0.99955, 0.9998, sd));        // and its disc
+  if (d.y > 0.0) {                                   // a high deck of soft clouds drifting with the wind
+    vec2 p = d.xz / (d.y + 0.1) * 0.085, w = uSkyTime * vec2(0.0021, 0.0008);
+    float n = texture2D(uCloudTex, p + w).r * 0.64 + texture2D(uCloudTex, p * 2.7 - w * 1.6 + 0.37).g * 0.36;
+    float a = smoothstep(0.53, 0.78, n) * smoothstep(0.015, 0.22, d.y);
+    vec3 lit = mix(uCloudLit, uSkyGlow, 0.25 + 0.5 * pow(max(sd, 0.0), 3.0));  // sunlit edges catch the glow
+    c = mix(c, mix(lit, uCloudShade, smoothstep(0.66, 0.95, n) * 0.6), a * 0.9);
+  }
+  c += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;   // dither: no banding
+  gl_FragColor = vec4(c, 1.0);
+}`,
+    side: THREE.BackSide, depthWrite: false }));
+  sky.frustumCulled = false; sky.renderOrder = 1e6; scene.add(sky);
+  const skyRay = new THREE.Vector3(), skyRight = new THREE.Vector3();
+  function updateSky(t) {                           // follow the camera; tip the sky up when the horizon is out of view
+    camera.updateMatrixWorld();
+    sky.position.copy(camera.position);
+    skyRay.set(0, 1, 0.5).unproject(camera).sub(camera.position).normalize();   // the ray through the top of the picture
+    const top = Math.asin(clamp(skyRay.y, -1, 1)), k = MAP.sea != null ? 0 : 1 - clamp((top + 0.14) / 0.26, 0, 1);   // a sea runs to the real horizon
+    SKY_U.uLift.value = k * k * (3 - 2 * k) * Math.max(0, 0.62 - top);       // tipped: the top shows sky ~35° up
+    skyRight.setFromMatrixColumn(camera.matrixWorld, 0).setY(0);
+    if (skyRight.lengthSq() > 1e-8) SKY_U.uLiftAxis.value.copy(skyRight.normalize());
+    if (!reduceMotion) skyClock.value = t;
+  }
+  // the sky's colour in a unit direction, as skyBase computes it (sRGB), for the reflection maps
+  function skyRGB(S, sd, x, y, z, out) {
+    const ss = (a, b, v) => { const u = clamp((v - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); };
+    out.copy(S.hor).lerp(S.low, ss(0, 0.07, y)).lerp(S.mid, ss(0.05, 0.24, y)).lerp(S.top, ss(0.18, 0.52, y))
+       .lerp(S.zen, ss(0.5, 1, y)).lerp(S.void, ss(0, -0.5, y));
+    const hl = Math.hypot(x, z) || 1e-6, sl = Math.hypot(sd.x, sd.z) || 1e-6;
+    const az = Math.max((x * sd.x + z * sd.z) / (hl * sl), 0), d = Math.max(x * sd.x + y * sd.y + z * sd.z, 0);
+    return out.lerp(S.glow, Math.min(0.42 * az * az * az * Math.exp(-Math.abs(y) * 6) + 0.3 * Math.pow(d, 6), 0.85));
+  }
+  const skyColors = T => Object.fromEntries(Object.entries(T.sky).map(([k, v]) => [k, new THREE.Color(v)]));
+  const sunDir = new THREE.Vector3(0, 1, 0);
   function applyTheme() {
-    const T = THEME, g = skyCv.getContext("2d"), gr = g.createLinearGradient(0, 0, 0, 256);
-    gr.addColorStop(0, T.sky[0]); gr.addColorStop(0.55, T.sky[1]); gr.addColorStop(1, T.sky[2]);
-    g.fillStyle = gr; g.fillRect(0, 0, 2, 256); skyTex.needsUpdate = true;
-    scene.fog.color.copy(lin(T.fog));
+    const T = THEME, S = skyColors(T);
+    for (const k of ["zen", "top", "mid", "low", "hor", "void", "glow"]) SKY_U["uSky" + k[0].toUpperCase() + k.slice(1)].value.copy(S[k]);
+    sky.material.uniforms.uCloudLit.value.copy(S.cloud); sky.material.uniforms.uCloudShade.value.copy(S.shade);
+    sunDir.set(T.sun[2][0], T.sun[2][1], T.sun[2][2]).normalize(); SKY_U.uSunDir.value.copy(sunDir);
     hemi.color.copy(lin(T.hemi[0])); hemi.groundColor.copy(lin(T.hemi[1])); hemi.intensity = T.hemi[2];
     sun.color.copy(lin(T.sun[0])); sun.intensity = T.sun[1];
-    sun.position.set(T.sun[2][0] * C, T.sun[2][1] * C, T.sun[2][2] * C);
-    Object.assign(sun.shadow.camera, { left: -C * 0.75, right: C * 0.75, top: C * 0.75, bottom: -C * 0.75, near: 1, far: C * 3 });
-    sun.shadow.camera.updateProjectionMatrix();
+    placeSun(0, 0, C * 0.75);
+  }
+  // The sun's shadow map covers a box round what the camera is looking at: the whole map from afar, a tighter box
+  // round the rover when the drone is close, so its spikes and treads cast crisp shadows. The box moves in whole
+  // shadow-map texels, so shadow edges stay still while it follows.
+  const lsX = new THREE.Vector3(), lsY = new THREE.Vector3(), lsP = new THREE.Vector3();
+  function placeSun(cx, cz, half) {
+    const texel = 2 * half / sun.shadow.mapSize.x;
+    lsX.set(-sunDir.z, 0, sunDir.x).normalize(); lsY.crossVectors(sunDir, lsX);
+    lsP.set(cx, courseCenter.y, cz);
+    const u = Math.round(lsP.dot(lsX) / texel) * texel, v = Math.round(lsP.dot(lsY) / texel) * texel, w = lsP.dot(sunDir);
+    lsP.copy(lsX).multiplyScalar(u).addScaledVector(lsY, v).addScaledVector(sunDir, w);
+    sun.target.position.copy(lsP); sun.target.updateMatrixWorld();
+    const far = C * 1.5, depth = half * 1.5 + (hMax - hMin) + 12;
+    sun.position.copy(lsP).addScaledVector(sunDir, far);
+    const cam = sun.shadow.camera;
+    if (cam.right !== half || cam.near !== far - depth) {
+      Object.assign(cam, { left: -half, right: half, top: half, bottom: -half, near: far - depth, far: far + depth });
+      cam.updateProjectionMatrix();
+    }
   }
   const std = (color, o) => {
     const m = new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.9 }, o || {}));
@@ -465,6 +649,7 @@ const SCENE = /*__SCENE__*/null;
     obj.traverse(o => {
       if (o.geometry) o.geometry.dispose();
       if (o.material) [].concat(o.material).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); });
+      if (o.customDepthMaterial) o.customDepthMaterial.dispose();
     });
   }
 
@@ -484,47 +669,588 @@ const SCENE = /*__SCENE__*/null;
     return out;
   }
   const TREE_KITS = {                               // each kit: parts sharing one transform per tree
-    broadleaf: () => [
-      { geo: mergeGeos([[new THREE.CylinderGeometry(0.1, 0.14, 1.6, 6), M4(0, 0.8, 0)]]), mat: std(THEME.trunk, { roughness: 1 }) },
-      { geo: mergeGeos([[new THREE.IcosahedronGeometry(1, 0), M4(0, 2.15, 0, 0, 0, 0, 0.95, 0.8, 0.95)],
-                        [new THREE.IcosahedronGeometry(0.6, 0), M4(0.35, 2.75, 0.1, 0.3, 0.5, 0)]]),
-        mat: std(THEME.leaf, { flatShading: true }) }],
-    cactus: () => [
-      { geo: mergeGeos([
-          [new THREE.CylinderGeometry(0.17, 0.2, 2.2, 8), M4(0, 1.1, 0)], [new THREE.SphereGeometry(0.17, 8, 6), M4(0, 2.2, 0)],
-          [new THREE.CylinderGeometry(0.1, 0.1, 0.34, 6), M4(0.26, 1.0, 0, 0, 0, Math.PI / 2)],
-          [new THREE.CylinderGeometry(0.1, 0.1, 0.6, 6), M4(0.42, 1.27, 0)], [new THREE.SphereGeometry(0.1, 6, 5), M4(0.42, 1.57, 0)],
-          [new THREE.CylinderGeometry(0.09, 0.09, 0.3, 6), M4(-0.24, 1.35, 0, 0, 0, Math.PI / 2)],
-          [new THREE.CylinderGeometry(0.09, 0.09, 0.5, 6), M4(-0.38, 1.58, 0)], [new THREE.SphereGeometry(0.09, 6, 5), M4(-0.38, 1.83, 0)]]),
-        mat: std(THEME.leaf, { roughness: 0.8, flatShading: true }) }],
-    palm: () => {
-      const trunk = [], fronds = [];
-      for (let k = 0; k < 5; k++) trunk.push([new THREE.CylinderGeometry(0.1, 0.13, 0.62, 6), M4(0.035 * k * k, 0.31 + 0.58 * k, 0, 0, 0, -0.07 * k)]);
-      for (let k = 0; k < 7; k++) {
-        const g = new THREE.BoxGeometry(0.26, 0.03, 1.5); g.translate(0, 0, 0.75);
-        fronds.push([g, M4(0.61, 2.95, 0, 0.45, (k / 7) * Math.PI * 2, 0)]);
-      }
-      return [{ geo: mergeGeos(trunk), mat: std(THEME.trunk, { roughness: 0.95, flatShading: true }) },
-              { geo: mergeGeos(fronds), mat: std(THEME.leaf, { roughness: 0.85, flatShading: true, side: THREE.DoubleSide }) }];
-    },
+    broadleaf: (trunk, leaf, variant) => broadleafParts(trunk, leaf, variant),
+    cactus: (trunk, leaf, variant) => cactusParts(leaf, variant),
+    palm: (trunk, leaf, variant) => palmParts(trunk, leaf, variant),
   };
+  const TREE_VARIANTS = { palm: 2, broadleaf: 3, cactus: 3 };   // a few shapes of each, so a grove doesn't look cloned
+
+  // ---------------------------------------------------------------- palms: Canary Island date palms
+  // A stout trunk patterned with diamond leaf scars, the "pineapple" knob under the crown, and a dense round crown of
+  // long feathery fronds: young ones stand up, older ones arch out and the oldest hang down. Each frond is a V-shaped
+  // strip textured with leaflets (alpha-tested, so they cast leafy shadows). The wind sways crowns and fronds in the
+  // vertex shader, after instancing, so gusts roll across the whole grove; their shadows sway with them.
+  const windClock = { value: 0 };
+  const WIND_GLSL = `
+uniform float uWind;
+attribute float aSway;                              // 0 where the plant is rigid, up to 1 at a frond's tip
+vec3 windAt(vec3 p, float k) {                      // world-space push on a point that sways by k
+  float ph = dot(p.xz, vec2(0.13, 0.09));
+  float gust = 0.55 + 0.45 * sin(uWind * 0.7 - ph * 1.7);
+  float flutter = sin(uWind * 2.6 + ph * 9.0 + k * 4.0 + p.y * 1.3);
+  return vec3(0.86, 0.0, 0.5) * (k * k * gust * 0.16) + vec3(0.45, 0.9, 0.3) * (flutter * 0.05 * k * smoothstep(0.25, 1.0, k));
+}
+`;
+  function windy(m, key, frag, vert) {              // a material whose vertices sway with windAt (and that draws the haze)
+    m.extensions = { derivatives: true };
+    m.onBeforeCompile = sh => {
+      skyUniforms(sh); sh.uniforms.uWind = windClock; sh.uniforms.uRover = roverSpot;
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vWindWorld;\n" + WIND_GLSL)
+        .replace("#include <project_vertex>", `vec4 mvPosition = vec4(transformed, 1.0);
+#ifdef USE_INSTANCING
+  mvPosition = instanceMatrix * mvPosition;
+#endif
+${vert || ""}
+  mvPosition.xyz += windAt(mvPosition.xyz, aSway);     // the scenery sits at the origin, so this is world space
+  vWindWorld = mvPosition.xyz;
+  mvPosition = modelViewMatrix * mvPosition;
+  gl_Position = projectionMatrix * mvPosition;`);
+      if (frag) sh.fragmentShader = frag(sh.fragmentShader);
+    };
+    m.customProgramCacheKey = () => "windy-" + key;
+    return m;
+  }
+  // Leaves and cacti between the camera and the rover dissolve (a stippled hole round the line of sight), so the
+  // rover never disappears behind a plant. Only in the picture: shadows keep every leaf.
+  const roverSpot = { value: new THREE.Vector3(0, -1e4, 0) };
+  const seeThrough = f => f.replace("#include <common>", "#include <common>\nvarying vec3 vWindWorld;\nuniform vec3 uRover;")
+    .replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>
+  {
+    vec3 toR = uRover - cameraPosition; float L = length(toR); vec3 d = toR / max(L, 1e-4);
+    vec3 rel = vWindWorld - cameraPosition; float along = dot(rel, d);
+    if (along > 0.0 && along < L - 1.1) {
+      vec2 q = mod(floor(gl_FragCoord.xy), 4.0);       // 4 x 4 ordered dither for a soft edge
+      float bayer = (mod(q.x + q.y * 2.0, 4.0) * 4.0 + mod(q.x * 2.0 + q.y, 4.0)) / 16.0;
+      if (length(rel - d * along) < (1.25 + 0.006 * L) * (0.75 + 0.45 * bayer)) discard;
+    }
+  }`);
+  const leafLight = f => f.replace("#include <lights_fragment_end>", `#include <lights_fragment_end>
+  #if NUM_DIR_LIGHTS > 0
+    // leaves glow when the (shadowed) sun shines through them toward the camera
+    reflectedLight.directDiffuse += diffuseColor.rgb * directLight.color * (0.55 * pow(max(dot(-geometry.viewDir, directLight.direction), 0.0), 3.0));
+  #endif`);
+  // Alpha-tested leaves thin out with distance: mipmaps average the gaps into the leaves until little passes the
+  // test. Scaling alpha up by the mip level keeps crowns full from afar, in the picture and in their shadows.
+  const fullAlpha = (w, h) => f => f.replace("#include <map_fragment>", `#include <map_fragment>
+  { vec2 tx = dFdx(vUv) * vec2(${w}.0, ${h}.0), ty = dFdy(vUv) * vec2(${w}.0, ${h}.0);
+    diffuseColor.a *= 1.0 + 0.3 * max(0.0, 0.5 * log2(max(dot(tx, tx), dot(ty, ty)))); }`);
+  let kitCache = {};                                // textures shared by a map's tree variants (cleared per map)
+  const cached = (key, make) => kitCache[key] || (kitCache[key] = make());
+  const canvasTex = (cv, repeat) => {
+    const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+    t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  };
+  // [[geometry, matrix, sway (a number, or a function of the final x, y, z)], ...] → one geometry with uv and aSway
+  function mergeKit(parts) {
+    const pos = [], nor = [], uv = [], sw = [];
+    for (const [g0, m, sway] of parts) {
+      const g = g0.index ? g0.toNonIndexed() : g0;
+      if (m) g.applyMatrix4(m);
+      const P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv;
+      for (let i = 0; i < P.count; i++) {
+        const x = P.getX(i), y = P.getY(i), z = P.getZ(i);
+        pos.push(x, y, z); nor.push(N.getX(i), N.getY(i), N.getZ(i)); uv.push(U ? U.getX(i) : 0, U ? U.getY(i) : 0);
+        sw.push(typeof sway === "function" ? sway(x, y, z) : sway);
+      }
+      if (g !== g0) g.dispose();
+      g0.dispose();
+    }
+    const out = new THREE.BufferGeometry();
+    out.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+    out.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); out.setAttribute("aSway", new THREE.Float32BufferAttribute(sw, 1));
+    return out;
+  }
+  // Broadleaf trees: a tapering trunk forking into a few branches, and a crown of leafy clumps. Each clump is a lumpy
+  // ball wearing a tiling texture of leaves (alpha-tested, so light and shadow come through the gaps); its normals
+  // bend outward from the whole crown's centre, so the crown shades like one soft, round mass.
+  function broadleafTextures(trunkHex, leafHex) {
+    const lc = document.createElement("canvas"); lc.width = lc.height = 256;
+    const g = lc.getContext("2d"), rnd = mulberry(321), lb = new THREE.Color(leafHex);
+    for (let k = 0; k < 1100; k++) {
+      const x = rnd() * 256, y = rnd() * 256, a = rnd() * Math.PI * 2, len = 8 + rnd() * 7, wid = len * (0.36 + rnd() * 0.14);
+      const kk = 0.62 + rnd() * 0.62, warm = rnd() * 18;
+      g.fillStyle = `rgb(${Math.min(255, lb.r * kk * 255 + warm)}, ${Math.min(255, lb.g * kk * 255 + warm * 0.6)}, ${Math.min(255, lb.b * kk * 255)})`;
+      for (const ox of [-256, 0, 256]) for (const oy of [-256, 0, 256]) {
+        const px = x + ox, py = y + oy;
+        if (px < -20 || py < -20 || px > 276 || py > 276) continue;
+        g.save(); g.translate(px, py); g.rotate(a); g.beginPath();
+        g.moveTo(-len / 2, 0); g.quadraticCurveTo(0, -wid, len / 2, 0); g.quadraticCurveTo(0, wid, -len / 2, 0); g.fill(); g.restore();
+      }
+    }
+    const bc = document.createElement("canvas"); bc.width = 64; bc.height = 128;
+    const b = bc.getContext("2d"), tb = new THREE.Color(trunkHex);
+    const bark = k => `rgb(${tb.r * k * 255}, ${tb.g * k * 255}, ${tb.b * k * 255})`;
+    b.fillStyle = bark(1); b.fillRect(0, 0, 64, 128);
+    for (let k = 0; k < 70; k++) {                // furrows running up the bark
+      const x = rnd() * 64; b.strokeStyle = bark(0.55 + rnd() * 0.25); b.lineWidth = 1 + rnd() * 2;
+      b.beginPath(); b.moveTo(x, 0); b.bezierCurveTo(x + (rnd() - 0.5) * 8, 40, x + (rnd() - 0.5) * 8, 90, x + (rnd() - 0.5) * 4, 128); b.stroke();
+    }
+    for (let k = 0; k < 40; k++) { b.fillStyle = bark(1.15 + rnd() * 0.2); b.fillRect(rnd() * 64, rnd() * 128, 2, 4 + rnd() * 6); }
+    return { leafTex: canvasTex(lc, true), barkTex: canvasTex(bc, true) };
+  }
+  function broadleafParts(trunkHex, leafHex, variant) {
+    const { leafTex, barkTex } = cached("broadleaf" + trunkHex + leafHex, () => broadleafTextures(trunkHex, leafHex));
+    const rnd = mulberry(501 + variant * 91), wood = [], leaves = [];
+    const crown = new THREE.Vector3(0, [2.45, 2.25, 2.7][variant], 0), spread = [1, 1.15, 0.9][variant];
+    const swayAt = (x, y) => 0.06 * Math.min(1, y / 2.4) + (y > 1.6 ? 0.28 * Math.min(1, (y - 1.6) / 1.4) : 0);
+    // trunk and branches: tapered cylinders, each from a fork toward a clump
+    const limb = (from, to, r0, r1) => {
+      const d = new THREE.Vector3().subVectors(to, from), len = d.length();
+      const g = new THREE.CylinderGeometry(r1, r0, len, 7, 3, true); g.translate(0, len / 2, 0);
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+      wood.push([g, new THREE.Matrix4().compose(from, q, new THREE.Vector3(1, 1, 1)), swayAt]);
+    };
+    const fork = new THREE.Vector3(0.03, crown.y - 0.95, 0);
+    limb(new THREE.Vector3(0, -0.05, 0), fork, 0.16, 0.1);
+    // clumps: one big one in the middle, a ring round it, a couple on top
+    const clumps = [[0, 0, 0, 0.72]];
+    const n = 6 + variant;
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2 + rnd() * 0.5, rr = (0.47 + rnd() * 0.15) * spread;
+      clumps.push([Math.cos(a) * rr, -0.15 + rnd() * 0.35, Math.sin(a) * rr, 0.44 + rnd() * 0.12]);
+    }
+    for (let k = 0; k < 2; k++) clumps.push([(rnd() - 0.5) * 0.5, 0.48 + rnd() * 0.15, (rnd() - 0.5) * 0.5, 0.42 + rnd() * 0.1]);
+    clumps.forEach(([x, y, z, r], k) => {
+      if (k > 0 && k <= 3) limb(fork, new THREE.Vector3(x * 0.8, crown.y + y * 0.6, z * 0.8), 0.07, 0.035);
+      const g = new THREE.IcosahedronGeometry(r, 1), P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv;
+      const c = new THREE.Vector3(x, crown.y + y, z), v = new THREE.Vector3(), out = new THREE.Vector3();
+      for (let i = 0; i < P.count; i++) {
+        v.set(P.getX(i), P.getY(i), P.getZ(i));
+        const h = Math.sin(v.x * 12.9898 + v.y * 78.233 + v.z * 37.719 + k) * 43758.5453;
+        v.multiplyScalar(0.85 + 0.3 * (h - Math.floor(h))).add(c);          // lumpy (shared corners move together)
+        P.setXYZ(i, v.x, v.y, v.z);
+        out.subVectors(v, crown).normalize().multiplyScalar(0.65).add(v.sub(c).normalize().multiplyScalar(0.35)).normalize();
+        N.setXYZ(i, out.x, out.y, out.z);
+        U.setXY(i, U.getX(i) * 2 + k * 0.37, U.getY(i) * 2 + k * 0.21);
+      }
+      leaves.push([g, null, swayAt]);
+    });
+    const depth = (key, map) => windy(new THREE.MeshDepthMaterial(Object.assign({ depthPacking: THREE.RGBADepthPacking },
+      map ? { map, alphaTest: 0.5 } : {})), key, map ? fullAlpha(256, 256) : null);
+    const leafMat = windy(new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.78 }), "crown",
+      f => seeThrough(leafLight(fullAlpha(256, 256)(f))));
+    leafMat.alphaToCoverage = true;
+    return [{ geo: mergeKit(wood), mat: windy(new THREE.MeshStandardMaterial({ map: barkTex, roughness: 1 }), "bark"), depth: depth("bark-depth"), receive: true },
+            { geo: mergeKit(leaves), mat: leafMat, depth: depth("crown-depth", leafTex), receive: true }];
+  }
+  // Saguaro cacti: ribbed columns (the ribs are in the geometry, smooth-shaded) with arms that bend upward, and
+  // pale spine clusters along every rib.
+  function cactusParts(skinHex, variant) {
+    const tex = cached("cactus" + skinHex, () => {
+      const cv = document.createElement("canvas"); cv.width = 128; cv.height = 256;
+      const g = cv.getContext("2d"), sk = new THREE.Color(skinHex), rnd = mulberry(55);
+      const tone = k => `rgb(${sk.r * k * 255}, ${sk.g * k * 255}, ${sk.b * k * 255})`;
+      const gr = g.createLinearGradient(0, 0, 128, 0);                     // ribs (u = k/8) catch a little more light
+      for (let k = 0; k <= 8; k++) { gr.addColorStop(Math.min(1, k / 8), tone(1.12)); if (k < 8) gr.addColorStop(k / 8 + 1 / 16, tone(0.82)); }
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 256);
+      for (let k = 0; k <= 8; k++) for (let y = 4; y < 256; y += 9 + rnd() * 3) {
+        g.fillStyle = `rgba(250, 238, 200, ${0.55 + rnd() * 0.35})`; g.beginPath(); g.arc(k * 16 + (rnd() - 0.5) * 1.5, y, 1.1 + rnd() * 0.7, 0, Math.PI * 2); g.fill();
+      }
+      return canvasTex(cv, true);
+    });
+    const rib = (geo, d) => {                       // eight rounded ribs round the local y axis
+      const P = geo.attributes.position;
+      for (let i = 0; i < P.count; i++) { const x = P.getX(i), z = P.getZ(i), k = 1 + d * Math.cos(8 * Math.atan2(z, x)); P.setX(i, x * k); P.setZ(i, z * k); }
+      geo.computeVertexNormals(); return geo;
+    };
+    const parts = [];
+    const column = (x, y0, h, r, rx, rz) => {      // a ribbed column with a domed top, leaning by rx / rz
+      const m = M4(x, y0, 0, rx || 0, 0, rz || 0), cyl = rib(new THREE.CylinderGeometry(r, r * 1.04, h, 24, 6, true), 0.07);
+      cyl.translate(0, h / 2, 0); cyl.applyMatrix4(m); parts.push([cyl, null, 0]);
+      const top = rib(new THREE.SphereGeometry(r, 24, 6, 0, Math.PI * 2, 0, Math.PI / 2), 0.07);
+      top.translate(0, h, 0); top.applyMatrix4(m); parts.push([top, null, 0]);
+    };
+    const arm = (side, y, out, up, r) => {          // a short stub out of the trunk, then the arm turning up
+      const stub = rib(new THREE.CylinderGeometry(r, r, out, 24, 2, true), 0.07);
+      stub.rotateZ(-side * Math.PI / 2); stub.translate(side * out / 2, y, 0); parts.push([stub, null, 0]);
+      const knee = rib(new THREE.SphereGeometry(r, 24, 8), 0.07); knee.translate(side * out, y, 0); parts.push([knee, null, 0]);
+      column(side * out, y, up, r);
+    };
+    const R0 = [0.19, 0.17, 0.22][variant], H0 = [2.3, 1.8, 1.25][variant];
+    column(0, -0.05, H0, R0);
+    if (variant === 0) { arm(1, 1.0, 0.36, 0.75, 0.1); arm(-1, 1.32, 0.3, 0.55, 0.09); }
+    if (variant === 1) arm(-1, 0.85, 0.32, 0.6, 0.095);
+    // windy only for its world position (aSway is 0, so a cactus never moves): it dissolves in front of the rover like foliage
+    return [{ geo: mergeKit(parts), mat: windy(new THREE.MeshStandardMaterial({ map: tex, roughness: 0.72 }), "cactus", seeThrough), receive: true }];
+  }
+  function palmTextures(trunkHex, leafHex) {
+    // trunk: rows of diamond leaf scars (v 0 to 0.75), then the knob's finer, warmer scars and fibres (v 0.75 to 1)
+    const tc = document.createElement("canvas"); tc.width = 128; tc.height = 512;
+    const g = tc.getContext("2d"), rnd = mulberry(77), tb = new THREE.Color(trunkHex);
+    const tone = (c, k, warm) => `rgb(${Math.min(255, c.r * k * 255 + warm)}, ${Math.min(255, c.g * k * 255 + warm * 0.55)}, ${Math.min(255, c.b * k * 255)})`;
+    g.fillStyle = tone(tb, 0.42, 0); g.fillRect(0, 0, 128, 512);
+    const scar = (cx, cy, hw, hh, k, warm) => {
+      const gr = g.createLinearGradient(0, cy - hh, 0, cy + hh);
+      gr.addColorStop(0, tone(tb, 1.2 * k, warm)); gr.addColorStop(0.55, tone(tb, 0.95 * k, warm)); gr.addColorStop(1, tone(tb, 0.6 * k, warm));
+      g.fillStyle = gr; g.beginPath(); g.moveTo(cx, cy - hh); g.lineTo(cx + hw, cy); g.lineTo(cx, cy + hh); g.lineTo(cx - hw, cy); g.closePath(); g.fill();
+      g.strokeStyle = tone(tb, 0.32, 0); g.lineWidth = 1.2; g.stroke();
+    };
+    for (let row = 0; row * 9 < 384 + 18; row++)       // trunk zone: canvas y 512 (base) up to 128
+      for (let col = -1; col <= 4; col++) scar(col * 32 + (row % 2 ? 16 : 0), 512 - row * 9, 15, 9, 0.85 + rnd() * 0.3, 0);
+    g.save(); g.beginPath(); g.rect(0, 0, 128, 129); g.clip();
+    g.fillStyle = tone(tb, 0.5, 30); g.fillRect(0, 0, 128, 129);
+    for (let row = 0; row * 5 < 128 + 10; row++)        // knob zone: canvas y 128 up to 0
+      for (let col = -1; col <= 8; col++) scar(col * 16 + (row % 2 ? 8 : 0), 128 - row * 5, 7.5, 5, 0.95 + rnd() * 0.3, 38);
+    g.strokeStyle = tone(tb, 0.7, 45); g.lineWidth = 0.8;
+    for (let k = 0; k < 140; k++) { const x = rnd() * 128, y = rnd() * 128; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rnd() - 0.5) * 4, y + 3 + rnd() * 5); g.stroke(); }
+    g.restore();
+    // frond: leaflets on both sides of a yellow-green rachis (u 0.5), leaning toward the tip (canvas top); short
+    // spines near the base; nothing in between, so the outline is a comb of leaflet tips
+    const lc = document.createElement("canvas"); lc.width = 128; lc.height = 512;
+    const L = lc.getContext("2d"), lb = new THREE.Color(leafHex);
+    const leafTone = (k, y) => `rgb(${Math.min(255, lb.r * k * 255 + y)}, ${Math.min(255, lb.g * k * 255 + y)}, ${Math.min(255, lb.b * k * 255)})`;
+    for (let y = 510; y > 4; y -= 3.6) {
+      const t = 1 - y / 512;
+      for (const side of [-1, 1]) {
+        const len = (t < 0.12 ? 0.35 + 4.5 * t : 0.8 + rnd() * 0.2) * 63, fwd = len * (0.62 + 0.3 * t), k = 0.75 + rnd() * 0.4;
+        const x1 = 64 + side * len, y1 = y - fwd, wb = t < 0.12 ? 1.4 : 2.6;
+        const gr = L.createLinearGradient(64, y, x1, y1);
+        gr.addColorStop(0, t < 0.12 ? leafTone(1.2, 34) : leafTone(k * 1.05, 14)); gr.addColorStop(1, leafTone(k * 0.78, 0));
+        L.fillStyle = gr; L.beginPath(); L.moveTo(64, y - wb); L.quadraticCurveTo(64 + side * len * 0.5, y - fwd * 0.42 - wb, x1, y1);
+        L.quadraticCurveTo(64 + side * len * 0.5, y - fwd * 0.42 + wb, 64, y + wb); L.closePath(); L.fill();
+      }
+    }
+    const rg = L.createLinearGradient(0, 512, 0, 0);
+    rg.addColorStop(0, leafTone(1.3, 60)); rg.addColorStop(1, leafTone(1.1, 30));
+    L.fillStyle = rg; L.beginPath(); L.moveTo(60, 512); L.lineTo(68, 512); L.lineTo(65, 0); L.lineTo(63, 0); L.closePath(); L.fill();
+    const trunkTex = canvasTex(tc), leafTex = canvasTex(lc);
+    trunkTex.wrapS = THREE.RepeatWrapping;
+    return { trunkTex, leafTex };
+  }
+  function palmGeometry(variant) {
+    const rnd = mulberry(901 + variant * 37), DEG = Math.PI / 180;
+    const H = variant ? 1.85 : 2.3, KN = 0.42, SEG = 12;           // trunk height to the knob, knob height
+    const bend = y => 0.1 * Math.pow(Math.min(y, H) / H, 2);       // a gentle curve
+    // trunk with a root flare, then the knob: rings of SEG + 1 vertices (u wraps), as one indexed geometry
+    const tp = [], tu = [], ts = [], ti = [];
+    const lathe = (ys, radius, v0, v1, reps) => {
+      const first = tp.length / 3;
+      ys.forEach((y, j) => {
+        const r = radius(y), v = v0 + (v1 - v0) * j / (ys.length - 1);
+        for (let i = 0; i <= SEG; i++) {
+          const a = i / SEG * Math.PI * 2;
+          tp.push(bend(y) + r * Math.cos(a), y, r * Math.sin(a)); tu.push(i / SEG * reps, v); ts.push(0.18 * Math.pow(y / (H + KN), 2));
+        }
+      });
+      for (let j = 0; j < ys.length - 1; j++) for (let i = 0; i < SEG; i++) {
+        const a = first + j * (SEG + 1) + i, b = a + SEG + 1;
+        ti.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+    };
+    lathe(Array.from({ length: 11 }, (_, j) => H * j / 10), y => 0.2 + 0.035 * (1 - y / H) + 0.07 * Math.max(0, 1 - y / 0.3) ** 2, 0, 0.75, 2);
+    lathe(Array.from({ length: 7 }, (_, j) => H + KN * j / 6), y => { const k = (y - H) / KN; return 0.2 + 0.1 * Math.sin(Math.PI * Math.min(1, k * 1.15)) - 0.05 * k * k; }, 0.75, 1, 3);
+    const top = tp.length / 3; tp.push(bend(H), H + KN + 0.05, 0); tu.push(0.5, 1); ts.push(0.18);
+    for (let i = 0; i < SEG; i++) ti.push(top - SEG - 1 + i, top, top - SEG + i);
+    // the crown: fronds round the knob's top on a golden-angle spiral; age sets how they lean and droop
+    const fp = [], fu = [], fs = [], fi = [], NF = 36, NS = 8;
+    const crownY = H + KN - 0.02, cx = bend(H);
+    for (let j = 0; j < NF; j++) {
+      const age = j / (NF - 1), phi = j * 2.39996 + (rnd() - 0.5) * 0.3;
+      const th0 = (60 - 78 * age + (rnd() - 0.5) * 14) * DEG, droop = (24 + 58 * age + (rnd() - 0.5) * 10) * DEG;
+      const len = (1.5 + 0.55 * Math.sin(Math.PI * Math.pow(age, 0.7))) * (0.9 + rnd() * 0.2) * (variant ? 0.92 : 1);
+      const W = 0.19 * len, roll = (rnd() - 0.5) * 0.9;
+      const S = new THREE.Vector3(-Math.sin(phi), 0, Math.cos(phi)), T = new THREE.Vector3(), U = new THREE.Vector3(), S2 = new THREE.Vector3();
+      const P = new THREE.Vector3(cx + 0.11 * Math.cos(phi), crownY - 0.24 * age, 0.11 * Math.sin(phi));
+      const first = fp.length / 3;
+      for (let i = 0; i <= NS; i++) {
+        const t = i / NS, th = th0 - droop * Math.pow(t, 1.4);
+        T.set(Math.cos(th) * Math.cos(phi), Math.sin(th), Math.cos(th) * Math.sin(phi));
+        U.crossVectors(S, T);
+        const rl = roll * t; S2.copy(S).multiplyScalar(Math.cos(rl)).addScaledVector(U, Math.sin(rl)); U.crossVectors(S2, T);
+        const w = W * (0.1 + 0.9 * Math.pow(Math.sin(Math.PI * Math.pow(t, 0.8)), 0.9)) * (1 - Math.pow(t, 6)), keel = w * 0.42;
+        for (const side of [-1, 0, 1]) {
+          fp.push(P.x + S2.x * w * side + U.x * keel * Math.abs(side), P.y + S2.y * w * side + U.y * keel * Math.abs(side), P.z + S2.z * w * side + U.z * keel * Math.abs(side));
+          fu.push(0.5 + side * 0.5, t); fs.push(0.18 + 0.82 * Math.pow(t, 1.3));
+        }
+        P.addScaledVector(T, len / NS);
+      }
+      for (let i = 0; i < NS; i++) {
+        const a = first + i * 3;
+        fi.push(a, a + 3, a + 1, a + 1, a + 3, a + 4, a + 1, a + 4, a + 2, a + 2, a + 4, a + 5);
+      }
+    }
+    const geom = (p, u, s, ix) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(u, 2));
+      g.setAttribute("aSway", new THREE.Float32BufferAttribute(s, 1)); g.setIndex(ix); g.computeVertexNormals();
+      return g;
+    };
+    return { trunk: geom(tp, tu, ts, ti), fronds: geom(fp, fu, fs, fi) };
+  }
+  function palmParts(trunkHex, leafHex, variant) {
+    const { trunkTex, leafTex } = cached("palm" + trunkHex + leafHex, () => palmTextures(trunkHex, leafHex)), geo = palmGeometry(variant);
+    const depth = (key, map) => windy(new THREE.MeshDepthMaterial(Object.assign({ depthPacking: THREE.RGBADepthPacking },
+      map ? { map, alphaTest: 0.4 } : {})), key, map ? fullAlpha(128, 512) : null);
+    const trunk = windy(new THREE.MeshStandardMaterial({ map: trunkTex, roughness: 0.95 }), "trunk");
+    // fronds: glossy leaflets, lit through from behind when the sun is beyond them
+    const fronds = windy(new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.62 }), "frond",
+      f => seeThrough(leafLight(fullAlpha(128, 512)(f))));
+    fronds.alphaToCoverage = true;
+    return [{ geo: geo.trunk, mat: trunk, depth: depth("trunk-depth"), receive: true },
+            { geo: geo.fronds, mat: fronds, depth: depth("frond-depth", leafTex), receive: true }];
+  }
+  // ---------------------------------------------------------------- water: the island's sea and the desert's oasis ponds
+  // One forward pass, no reflection camera: a physically based surface (MeshStandardMaterial, so it gets the sun,
+  // shadows, fog and a sky map for reflections) whose shader is extended to
+  //   - ripple: the surface normal is bent by a few travelling waves, computed per pixel (no textures);
+  //   - glitter: finer, steeper wave facets that tip the sun straight into the camera flash white;
+  //   - clear water: colour and opacity follow the depth, so shallows show the sandy bed and its caustics;
+  //   - foam: a thin, lapping white rim where the water meets the shore.
+  // Depth comes from a vertex attribute: the water mesh reuses the terrain's grid and triangle split, so the
+  // depth interpolates exactly like the ground and the shoreline lands where the ground meets the water.
+  const waterClock = { value: 0 };
+  const WATER_GLSL = `
+#define GLINT_SLOPE 0.075
+#define GLINT_SHARP 1100.0
+#define GLINT_GAIN 9.0
+#define SHEEN 0.1
+uniform float uTime, uFoamWidth, uChop, uClear;
+uniform vec3 uShallow, uDeep, uFoam;
+uniform sampler2D uGlint;
+varying float vDepth;
+varying vec2 vXZ;
+vec2 wave(vec2 p, float t, vec2 dir, float len, float amp, float speed) {     // gradient of one travelling sine wave
+  float k = 6.2831853 / len;
+  return dir * (amp * k * cos(k * (dot(dir, p) - speed * t)));
+}
+float gust(vec2 p, float t) {                       // slow patches of wind: rougher here, calmer there
+  return 0.55 + 0.45 * sin(p.x * 0.11 + sin(p.y * 0.083 + t * 0.05) * 2.0) * sin(p.y * 0.097 - t * 0.04 + sin(p.x * 0.07) * 2.0);
+}
+vec2 ripples(vec2 p, float t) {
+  vec2 q = p + 0.9 * vec2(sin(p.y * 0.37 + t * 0.21), cos(p.x * 0.29 - t * 0.17));    // warp: no straight stripes
+  return wave(q, t, vec2(0.80, 0.60), 3.1, 0.024, 0.9) + wave(q, t, vec2(-0.47, 0.88), 2.3, 0.017, 0.8)
+       + wave(q, t, vec2(0.17, -0.99), 1.45, 0.011, 0.6) + wave(q, t, vec2(-0.94, -0.33), 0.95, 0.0068, 0.5)
+       + wave(q, t, vec2(0.62, -0.78), 0.71, 0.0046, 0.45);
+}
+vec2 chop(vec2 uv) {                                 // random small-wave slopes from the tiling texture (unit RMS)
+  return (texture2D(uGlint, uv).xy * 255.0 - 128.0) / 40.0;
+}
+vec2 glints(vec2 p, float t) {                       // two layers drifting different ways, so the sparkles twinkle;
+  return chop(p * 0.26 + t * vec2(0.021, 0.013))     // mipmaps calm them down with distance (no flicker)
+       + chop(mat2(0.8, -0.6, 0.6, 0.8) * p * 0.37 - t * vec2(0.017, -0.024));
+}
+float caustic(vec2 p, float t) {                     // thin moving lines of light on the shallow bed
+  float a = sin(p.x * 1.7 + sin(p.y * 1.3 + t * 0.7) * 1.5 + t * 0.6);
+  float b = sin(p.y * 2.1 + sin(p.x * 1.1 - t * 0.5) * 1.5 - t * 0.45);
+  return pow(clamp(1.0 - abs(a + b) * 0.5, 0.0, 1.0), 9.0);
+}
+`;
+  // A tiling field of small random wave slopes for the glitter: a sum of random waves whose wave numbers are whole
+  // numbers per tile, so it repeats seamlessly. Stored as slopes (128 = flat) with mipmaps. Built once, ~20 ms.
+  let glintTexture = null;
+  function glintTex() {
+    if (glintTexture) return glintTexture;
+    const N = 128, rnd = mulberry(4242), waves = [];
+    while (waves.length < 48) {                      // mostly travelling one way, so sparkles stretch along the crests
+      const kx = Math.round((rnd() * 2 - 1) * 18), ky = Math.round((rnd() * 2 - 1) * 18), k = Math.hypot(kx, ky);
+      if (k < 3 || rnd() > Math.exp(-Math.pow(Math.atan2(Math.abs(ky), Math.abs(kx)) / 0.55, 2))) continue;
+      waves.push([kx, ky, Math.pow(k, -1.3) * 2 * Math.PI, rnd() * 2 * Math.PI]);
+    }
+    const gx = new Float32Array(N * N), gy = new Float32Array(N * N);
+    let ss = 0;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      let sx = 0, sy = 0;
+      for (const [kx, ky, a, ph] of waves) { const c = a * Math.cos(2 * Math.PI * (kx * x + ky * y) / N + ph); sx += c * kx; sy += c * ky; }
+      gx[y * N + x] = sx; gy[y * N + x] = sy; ss += sx * sx + sy * sy;
+    }
+    const rms = Math.sqrt(ss / (2 * N * N)), data = new Uint8Array(N * N * 4);
+    for (let i = 0; i < N * N; i++) {
+      data[i * 4] = clamp(Math.round(128 + 40 * gx[i] / rms), 0, 255); data[i * 4 + 1] = clamp(Math.round(128 + 40 * gy[i] / rms), 0, 255);
+      data[i * 4 + 2] = 128; data[i * 4 + 3] = 255;
+    }
+    const t = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true; t.needsUpdate = true;
+    return (glintTexture = t);
+  }
+  function waterMaterial(W, env) {
+    const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0, transparent: true,
+      envMap: env, envMapIntensity: 0.9 });               // a soft sun sheen; the sparkles come from the facets
+    const u = { uTime: waterClock, uGlint: { value: glintTex() }, uShallow: { value: lin(W.shallow) }, uDeep: { value: lin(W.deep) },
+                uFoam: { value: lin(W.foam) }, uFoamWidth: { value: W.foamWidth }, uChop: { value: W.chop },
+                uClear: { value: W.clear } };
+    const put = (src, at, code) => {                 // extend a three.js r128 shader chunk; say so if it ever moves
+      if (!src.includes(at)) console.warn(`water shader: "${at}" not found`);
+      return src.replace(at, code);
+    };
+    m.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, u); skyUniforms(sh);
+      let v = sh.vertexShader, f = sh.fragmentShader;
+      v = put(v, "#include <common>", "#include <common>\nattribute float aDepth;\nvarying float vDepth;\nvarying vec2 vXZ;");
+      v = put(v, "#include <begin_vertex>", "#include <begin_vertex>\n  vDepth = aDepth;\n  vXZ = (modelMatrix * vec4(transformed, 1.0)).xz;");
+      f = put(f, "#include <common>", "#include <common>\n" + WATER_GLSL);
+      f = put(f, "#include <color_fragment>", `#include <color_fragment>
+  if (vDepth < 0.0) discard;                                       // the dry side of a shore triangle
+  float deepK = smoothstep(0.0, 1.6, vDepth);
+  vec3 wcol = mix(uShallow, uDeep, deepK);
+  wcol += vec3(1.0, 0.97, 0.88) * caustic(vXZ, uTime) * 0.16 * (1.0 - smoothstep(0.05, 0.8, vDepth));
+  float lap = 0.5 + 0.5 * sin(uTime * 1.4 + dot(vXZ, vec2(0.7, 0.9)));
+  float rim = 1.0 - smoothstep(0.0, uFoamWidth * (0.6 + 0.6 * lap), vDepth);
+  float foam = clamp(rim * (0.5 + 0.5 * sin(vXZ.x * 6.3 + uTime * 0.9) * sin(vXZ.y * 5.1 - uTime * 0.7)) * 1.2, 0.0, 1.0);
+  diffuseColor.rgb = mix(wcol, uFoam, foam);
+  diffuseColor.a = mix(mix(uClear, 0.9, deepK), 0.95, foam);`);
+      f = put(f, "#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 0.85, foam);");
+      f = put(f, "#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+  float wDist = length(vViewPosition);
+  float wFar = 1.0 - smoothstep(70.0, 140.0, wDist);              // distant water: calm, no glitter
+  float calm = mix(0.35, 1.0, deepK) * (1.0 - foam) * gust(vXZ, uTime) * uChop * mix(0.3, 1.0, 1.0 - smoothstep(35.0, 110.0, wDist));
+  vec2 rg = ripples(vXZ, uTime) * calm;
+  normal = normalize((viewMatrix * vec4(normalize(vec3(-rg.x, 1.0, -rg.y)), 0.0)).xyz);`);
+      f = put(f, "#include <lights_fragment_begin>", `#include <lights_fragment_begin>
+  // sun glitter: steep little facets that mirror the (shadowed) sun into the camera
+  vec2 fg = rg + glints(vXZ, uTime) * GLINT_SLOPE * wFar * (1.0 - foam) * mix(0.6, 1.0, uChop);
+  vec3 fN = normalize((viewMatrix * vec4(normalize(vec3(-fg.x, 1.0, -fg.y)), 0.0)).xyz);
+  float spark = pow(max(dot(fN, normalize(directLight.direction + geometry.viewDir)), 0.0), GLINT_SHARP) * GLINT_GAIN;
+  vec3 glitter = directLight.color * spark;`);
+      f = put(f, "#include <lights_fragment_end>", `#include <lights_fragment_end>
+  reflectedLight.directSpecular *= SHEEN;                          // the sun's broad sheen stays soft: the sparkles carry it`);
+      f = put(f, "gl_FragColor = vec4( outgoingLight, diffuseColor.a );", `outgoingLight += glitter;
+  // light the surface reflects is not dimmed by how clear the water underneath is
+  diffuseColor.a = clamp(diffuseColor.a + 0.6 * linearToRelativeLuminance(reflectedLight.directSpecular + reflectedLight.indirectSpecular) + spark, 0.0, 1.0);
+  gl_FragColor = vec4( outgoingLight, diffuseColor.a );`);
+      sh.vertexShader = v; sh.fragmentShader = f;
+    };
+    return m;
+  }
+  // the water surface over every grid square that has water at a corner, plus (for the island) the open sea around the map
+  function waterGeometry() {
+    const pos = [], dep = [];
+    const vert = (r, c, level) => { const i = r * C + c; pos.push(toX(c), level, toZ(r)); dep.push(level - H[i]); };
+    for (let r = 0; r < R - 1; r++) for (let c = 0; c < C - 1; c++) {
+      const q = [r * C + c, (r + 1) * C + c, (r + 1) * C + c + 1, r * C + c + 1];
+      const wet = q.find(i => WL[i] === WL[i]);
+      if (wet === undefined) continue;
+      const lv = WL[wet];                            // same split as THREE.PlaneGeometry and groundH
+      vert(r, c, lv); vert(r + 1, c, lv); vert(r, c + 1, lv);
+      vert(r + 1, c, lv); vert(r + 1, c + 1, lv); vert(r, c + 1, lv);
+    }
+    if (MAP.sea != null) {                           // open sea beyond the map edges, deep everywhere
+      const x0 = toX(0), x1 = toX(C - 1), z0 = toZ(0), z1 = toZ(R - 1), X = C * 12, Z = R * 12, y = MAP.sea;
+      const quad = (ax, az, bx, bz) => {
+        pos.push(ax, y, az, ax, y, bz, bx, y, az, ax, y, bz, bx, y, bz, bx, y, az);
+        for (let k = 0; k < 6; k++) dep.push(3.2);
+      };
+      quad(-X, -Z, X, z0); quad(-X, z1, X, Z); quad(-X, z0, x0, z1); quad(x1, z0, X, z1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("aDepth", new THREE.Float32BufferAttribute(dep, 1));
+    g.setAttribute("normal", new THREE.Float32BufferAttribute(new Float32Array(pos.length).map((_, k) => (k % 3 === 1 ? 1 : 0)), 3));
+    return g;
+  }
+  // ---------------------------------------------------------------- ground detail
+  // The terrain is smooth-shaded and textured per pixel from world position, with no image textures: grass is
+  // mottled at three scales, sand carries wind ripples (crests across the wind, bent by noise, gone on steep
+  // faces and far away), and rocky ground and steep slopes are lumpy. Each vertex says how much grass, sand and
+  // rock it is, and which way the sand's ripples run.
+  const GROUND_GLSL = `
+uniform sampler2D uNoise;
+varying vec4 vMat;                                   // grass, sand, rock
+varying vec2 vWind;                                  // sand ripples run across this direction
+varying vec3 vWPos;
+float gN1, gN2, gN3;                                 // noise at three scales, shared by the colour and the normal
+vec3 groundTint(vec2 p) {
+  gN1 = texture2D(uNoise, p * 0.043).r; gN2 = texture2D(uNoise, p * 0.19 + 0.31).g; gN3 = texture2D(uNoise, p * 0.9 + 0.7).r;
+  float n4 = texture2D(uNoise, p * 3.1 + 0.2).g;
+  vec3 grass = vec3(mix(0.8, 1.14, gN1) * mix(0.86, 1.1, gN2) * mix(0.94, 1.05, n4));
+  grass *= vec3(mix(0.94, 1.08, gN2), 1.0, mix(1.04, 0.92, gN2));   // some patches drift toward straw
+  vec3 sand = vec3(mix(0.93, 1.06, gN1) * mix(0.95, 1.05, gN3) * mix(0.97, 1.03, n4));
+  vec3 rock = vec3(mix(0.7, 1.2, gN3) * mix(0.84, 1.12, gN2) * mix(0.88, 1.12, n4));
+  return (grass * vMat.x + sand * vMat.y + rock * vMat.z) / (vMat.x + vMat.y + vMat.z + 1e-4);
+}
+vec3 groundNormal(vec3 nv, vec2 p) {
+  vec3 n = vec3(dot(viewMatrix[0].xyz, nv), dot(viewMatrix[1].xyz, nv), dot(viewMatrix[2].xyz, nv));   // to the world
+  float sum = vMat.x + vMat.y + vMat.z + 1e-4, near = 1.0 - smoothstep(25.0, 70.0, length(vViewPosition));
+  vec2 s = vec2(0.0);
+  float sandK = vMat.y / sum;
+  if (sandK > 0.01) {                                // ripples: crests across the wind, bent by the noise
+    vec2 dir = normalize(vWind + vec2(1e-5, 0.0));
+    float ph = dot(p, dir) * 17.0 + gN1 * 18.0 + gN2 * 5.0;
+    float amp = sandK * (1.0 - smoothstep(0.8, 2.2, fwidth(ph))) * smoothstep(0.86, 0.97, n.y) * mix(0.25, 1.0, gN2);
+    s += dir * ((sin(ph) + 0.3 * sin(2.0 * ph)) * 0.24 * amp);   // gentle on the windward side, steeper in the lee
+  }
+  float lumpK = (vMat.x * 0.06 + vMat.z * 0.7) / sum * near;
+  if (lumpK > 0.002) {                               // lumps on grass and rock: the gradient of the fine noise
+    float e = 0.12;
+    s += vec2(texture2D(uNoise, (p + vec2(e, 0.0)) * 0.9 + 0.7).r - gN3, texture2D(uNoise, (p + vec2(0.0, e)) * 0.9 + 0.7).r - gN3) / e * lumpK;
+  }
+  n = normalize(n - vec3(s.x, 0.0, s.y));
+  return normalize((viewMatrix * vec4(n, 0.0)).xyz);
+}
+`;
+  function groundMaterial() {
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
+    m.onBeforeCompile = sh => {
+      skyUniforms(sh); sh.uniforms.uNoise = { value: noiseTex() };
+      sh.vertexShader = sh.vertexShader
+        .replace("#include <common>", "#include <common>\nattribute vec4 aMat;\nattribute vec2 aWind;\nvarying vec4 vMat;\nvarying vec2 vWind;\nvarying vec3 vWPos;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\n  vMat = aMat; vWind = aWind; vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      sh.fragmentShader = sh.fragmentShader
+        .replace("#include <common>", "#include <common>\n" + GROUND_GLSL)
+        .replace("#include <color_fragment>", "#include <color_fragment>\n  diffuseColor.rgb *= groundTint(vWPos.xz);")
+        .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n  normal = groundNormal(normal, vWPos.xz);");
+    };
+    m.customProgramCacheKey = () => "ground";
+    m.extensions = { derivatives: true };
+    return m;
+  }
+  function groundDetail() {                       // per vertex: grass/sand/rock weights, and the sand ripples' direction
+    const n = R * C, mat = new Float32Array(n * 4), wind = new Float32Array(n * 2), gx = new Float32Array(n), gz = new Float32Array(n);
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+      const i = r * C + c;
+      gx[i] = (H[r * C + Math.min(c + 1, C - 1)] - H[r * C + Math.max(c - 1, 0)]) / 2;
+      gz[i] = (H[Math.min(r + 1, R - 1) * C + c] - H[Math.max(r - 1, 0) * C + c]) / 2;
+      const kind = OBS[i] === 3 ? 1 : (THEME.ground[SURF[i]] || 0), slope = Math.hypot(gx[i], gz[i]);
+      const steep = clamp((slope - 0.55 * MAP.max_grade) / (0.45 * MAP.max_grade), 0, 1) * 0.85;
+      for (let k = 0; k < 3; k++) mat[i * 4 + k] = (k === kind ? 1 : 0) * (1 - steep) + (k === 2 ? steep : 0);
+    }
+    // the main axis of the slopes (dunes face the wind), then each vertex's own, smoothed over 5 x 5 cells
+    let jxx = 0, jzz = 0, jxz = 0;
+    for (let i = 0; i < n; i++) { jxx += gx[i] * gx[i]; jzz += gz[i] * gz[i]; jxz += gx[i] * gz[i]; }
+    const th = 0.5 * Math.atan2(2 * jxz, jxx - jzz), ax = Math.cos(th), az = Math.sin(th);
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+      let sx = 0, sz = 0;
+      for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) {
+        const j = clamp(r + dr, 0, R - 1) * C + clamp(c + dc, 0, C - 1); sx += gx[j]; sz += gz[j];
+      }
+      const len = Math.hypot(sx, sz) / 25, k = clamp((len - 0.03) / 0.12, 0, 1), sign = sx * ax + sz * az < 0 ? -1 : 1;
+      let wx = ax * (1 - k) + (len > 1e-6 ? sign * sx / (len * 25) : 0) * k, wz = az * (1 - k) + (len > 1e-6 ? sign * sz / (len * 25) : 0) * k;
+      const wl = Math.hypot(wx, wz) || 1;
+      wind[(r * C + c) * 2] = wx / wl; wind[(r * C + c) * 2 + 1] = wz / wl;
+    }
+    return { mat, wind };
+  }
   let world = null;
   function buildWorld() {
-    if (world) { scene.remove(world.group); disposeTree(world.group); }
+    if (world) { scene.remove(world.group); disposeTree(world.group); if (world.waterEnv) world.waterEnv.dispose(); }
+    kitCache = {};
     const group = new THREE.Group(), rnd = mulberry(MAP.seed * 7 + 11);
     // terrain
     const geo = new THREE.PlaneGeometry(C - 1, R - 1, C - 1, R - 1);
     geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position, colors = new Float32Array(pos.count * 3), col = new THREE.Color();
+    const raw = Array.from({ length: pos.count }, (_, i) => groundRGB(i));
     for (let i = 0; i < pos.count; i++) {
       pos.setY(i, H[i]);
-      const [r, g, b] = groundRGB(i);
-      col.setRGB(r, g, b).convertSRGBToLinear().offsetHSL(0, 0, (rnd() - 0.5) * 0.03);
+      const r0 = (i / C) | 0, c0 = i - r0 * C, rgb = [0, 0, 0];   // a light 3 x 3 blur (land only: shores stay crisp)
+      let wsum = 0;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        const rr = r0 + dr, cc = c0 + dc, j = rr * C + cc;
+        if (rr < 0 || cc < 0 || rr >= R || cc >= C || (OBS[j] === 3) !== (OBS[i] === 3)) continue;
+        const w = (dr ? 1 : 2) * (dc ? 1 : 2);
+        rgb[0] += raw[j][0] * w; rgb[1] += raw[j][1] * w; rgb[2] += raw[j][2] * w; wsum += w;
+      }
+      col.setRGB(rgb[0] / wsum, rgb[1] / wsum, rgb[2] / wsum).convertSRGBToLinear().offsetHSL(0, 0, (rnd() - 0.5) * 0.03);
       colors.set([col.r, col.g, col.b], i * 3);
     }
     geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    const detail = groundDetail();
+    geo.setAttribute("aMat", new THREE.BufferAttribute(detail.mat, 4));
+    geo.setAttribute("aWind", new THREE.BufferAttribute(detail.wind, 2));
     geo.computeVertexNormals();
-    const ground = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true }));
+    const ground = new THREE.Mesh(geo, groundMaterial());
     ground.receiveShadow = true; group.add(ground);
     // earth skirt so the map reads as a model, not a floating sheet
     const skirtMat = std(THEME.skirt, { roughness: 1, side: THREE.DoubleSide });
@@ -542,14 +1268,17 @@ const SCENE = /*__SCENE__*/null;
     edge(line(k => [toX(k), toZ(R - 1), hAt(R - 1, k)], C));
     edge(line(k => [toX(0), toZ(k), hAt(k, 0)], R));
     edge(line(k => [toX(C - 1), toZ(k), hAt(k, C - 1)], R));
-    // sea around the island
-    if (MAP.sea != null) {
-      const water = new THREE.Mesh(new THREE.PlaneGeometry(C * 6, R * 6),
-        std(THEME.water, { transparent: true, opacity: 0.84, roughness: 0.15, metalness: 0.05 }));
-      water.rotation.x = -Math.PI / 2; water.position.y = MAP.sea; water.receiveShadow = true; group.add(water);
-      const deep = mix(PAL.seabed, PAL.water, 0.6), floorMat = std("#000000");
+    // water: the island's sea or the desert's ponds, reflecting this map's sky
+    let waterEnv = null;
+    if (WL.some(w => w === w)) {
+      waterEnv = skyEnvironment(THEME, 0);
+      const water = new THREE.Mesh(waterGeometry(), waterMaterial(THEME.water, waterEnv));
+      water.receiveShadow = true; water.frustumCulled = false; group.add(water);
+    }
+    if (MAP.sea != null) {                           // the sea floor beyond the map
+      const deep = mix(PAL.seabed, PAL.waterDeep, 0.6), floorMat = std("#000000");
       floorMat.color.setRGB(deep[0], deep[1], deep[2]).convertSRGBToLinear();
-      const floor = new THREE.Mesh(new THREE.PlaneGeometry(C * 6, R * 6), floorMat);
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(C * 24, R * 24), floorMat);
       floor.rotation.x = -Math.PI / 2; floor.position.y = hMin - 0.05; floor.receiveShadow = true; group.add(floor);
     }
     // rocks and trees
@@ -567,18 +1296,112 @@ const SCENE = /*__SCENE__*/null;
       mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
     }
     if (trees.length) {
-      const meshes = TREE_KITS[THEME.tree]().map(p => {
-        const m = new THREE.InstancedMesh(p.geo, p.mat, trees.length); m.castShadow = true; group.add(m); return m;
-      });
-      trees.forEach((i, k) => {
+      const kits = { main: [THEME.tree, THEME.trunk, THEME.leaf], palm: THEME.oasis ? ["palm", THEME.oasis.trunk, THEME.oasis.leaf] : null };
+      const slots = {};                              // kit and variant → the transforms of its trees
+      trees.forEach(i => {
         const r = (i / C) | 0, c = i - r * C, s = 0.8 + rnd() * 0.45;
         q.setFromEuler(e.set(0, rnd() * Math.PI * 2, 0));
-        m4.compose(v.set(toX(c), H[i], toZ(r)), q, sc.set(s, s, s));
-        meshes.forEach(m => m.setMatrixAt(k, m4));
+        const key = isOasisPalm(i) ? "palm" : "main", variant = (r * 7 + c * 13) % (TREE_VARIANTS[kits[key][0]] || 1);
+        (slots[key + variant] = slots[key + variant] || { key, variant, at: [] }).at.push(m4.compose(v.set(toX(c), H[i], toZ(r)), q, sc.set(s, s, s)).clone());
       });
+      for (const { key, variant, at } of Object.values(slots)) {
+        const [kind, trunk, leaf] = kits[key];
+        for (const p of TREE_KITS[kind](trunk, leaf, variant)) {
+          const m = new THREE.InstancedMesh(p.geo, p.mat, at.length);
+          at.forEach((mat, k) => m.setMatrixAt(k, mat));
+          m.castShadow = true; m.receiveShadow = !!p.receive; m.frustumCulled = false;   // instances span the map
+          if (p.depth) m.customDepthMaterial = p.depth;
+          group.add(m);
+        }
+      }
     }
+    const tufts = grassTufts(group) || null;
+    const tick = THEME.oasis ? oasisLife(group) : null;
     scene.add(group);
-    world = { group, ground };
+    world = { group, ground, waterEnv, tick, tufts };
+    applyQuality();
+  }
+  // Grass tufts: seven thin blades each, instanced over the grassy cells and swaying with the wind. Tall grass and
+  // jungle grow taller, denser tufts, so slow ground reads at a glance. Tufts shrink away beyond ~30 m (no shimmer
+  // from afar, nothing to draw in the overview) and take shadows without casting any.
+  function grassTufts(group) {
+    const spec = THEME.tufts, gr = mulberry(MAP.seed * 17 + 3), cells = [];
+    for (let i = 0; i < OBS.length; i++) {
+      const t = spec[SURF[i]];
+      if (!t || OBS[i] || WL[i] === WL[i]) continue;
+      for (let n = t[0] + (gr() < t[0] % 1 ? 1 : 0) | 0; n > 0; n--) cells.push([i, t[1]]);
+    }
+    if (!cells.length) return null;
+    const pos = [], col = [], sw = [];
+    for (let b = 0; b < 7; b++) {                   // one tuft: blades leaning out round its middle
+      const a = b / 7 * Math.PI * 2 + gr() * 0.6, lean = 0.25 + gr() * 0.35, hgt = 0.65 + gr() * 0.35, ox = Math.cos(a) * 0.05, oz = Math.sin(a) * 0.05;
+      const tx = ox + Math.cos(a) * lean * hgt, tz = oz + Math.sin(a) * lean * hgt, px = -Math.sin(a) * 0.022, pz = Math.cos(a) * 0.022;
+      pos.push(ox - px, 0, oz - pz, ox + px, 0, oz + pz, tx, hgt, tz);
+      col.push(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.2, 1.2, 1.05); sw.push(0, 0, 1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    g.setAttribute("normal", new THREE.Float32BufferAttribute(pos.map((_, k) => (k % 3 === 1 ? 1 : 0)), 3));   // lit like the ground
+    g.setAttribute("aSway", new THREE.Float32BufferAttribute(sw.map(k => k * 0.62), 1));
+    const mat = windy(new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.9 }), "tuft", null,
+      `  vec3 tuftBase = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+  mvPosition.xyz = tuftBase + (mvPosition.xyz - tuftBase) * (1.0 - smoothstep(22.0, 34.0, distance(tuftBase, cameraPosition)));`);
+    const mesh = new THREE.InstancedMesh(g, mat, cells.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(),
+          v = new THREE.Vector3(), sc = new THREE.Vector3(), c = new THREE.Color();
+    cells.forEach(([i, h], k) => {
+      const r = (i / C) | 0, cc = i - r * C, x = toX(cc) + (gr() - 0.5) * 0.9, z = toZ(r) + (gr() - 0.5) * 0.9, s = h * (0.75 + gr() * 0.5);
+      mesh.setMatrixAt(k, m4.compose(v.set(x, groundH(x, z) - 0.02, z), q.setFromEuler(e.set(0, gr() * 6.3, 0)), sc.set(s, s, s)));
+      const [cr, cg, cb] = groundRGB(i);
+      mesh.setColorAt(k, c.setRGB(cr, cg, cb).convertSRGBToLinear().offsetHSL((gr() - 0.5) * 0.03, 0.05, 0.02 + (gr() - 0.5) * 0.06));
+    });
+    mesh.receiveShadow = true; mesh.frustumCulled = false; mesh.visible = !!QUALITY[qLevel].tufts; group.add(mesh);
+    return mesh;
+  }
+  // reeds in the shallows and leaves floating on the ponds; returns a function that lets the leaves drift
+  function oasisLife(group) {
+    const wr = mulberry(MAP.seed * 13 + 5), O = THEME.oasis;
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+    const reeds = [], pads = [];
+    for (let i = 0; i < OBS.length; i++) {
+      const depth = WL[i] - H[i];
+      if (!(depth > 0)) continue;
+      const r = (i / C) | 0, c = i - r * C;
+      let shore = false;
+      for (let k = 0; k < 8 && !shore; k++) {
+        const rr = r + NB_R[k], cc = c + NB_C[k];
+        shore = rr >= 0 && cc >= 0 && rr < R && cc < C && !(WL[rr * C + cc] === WL[rr * C + cc]);
+      }
+      if (shore && depth < 0.6 && wr() < 0.5) {      // a clump of reeds at the water's edge
+        for (let n = 3 + Math.floor(wr() * 4); n > 0; n--) {
+          const x = toX(c) + (wr() - 0.5) * 0.9, z = toZ(r) + (wr() - 0.5) * 0.9, b = groundH(x, z);
+          reeds.push([x, b, z, wr() * 6.3, (wr() - 0.5) * 0.35, (wr() - 0.5) * 0.35, WL[i] - b + 0.35 + wr() * 0.6]);
+        }
+      } else if (!shore && depth > 0.2 && depth < 1.3 && wr() < 0.07) {   // a few floating leaves
+        for (let n = 1 + Math.floor(wr() * 3); n > 0; n--)
+          pads.push({ x: toX(c) + (wr() - 0.5) * 1.4, z: toZ(r) + (wr() - 0.5) * 1.4, y: WL[i] + 0.012,
+                      yaw: wr() * 6.3, s: 0.16 + wr() * 0.2, ph: wr() * 6.3 });
+      }
+    }
+    if (reeds.length) {
+      const g = new THREE.ConeGeometry(1, 1, 4, 1); g.translate(0, 0.5, 0);
+      const mesh = new THREE.InstancedMesh(g, std(O.reed, { roughness: 0.8, flatShading: true }), reeds.length);
+      reeds.forEach(([x, y, z, yaw, tx, tz, hgt], k) =>
+        mesh.setMatrixAt(k, m4.compose(v.set(x, y, z), q.setFromEuler(e.set(tx, yaw, tz, "YXZ")), sc.set(0.024, hgt, 0.024))));
+      mesh.castShadow = true; group.add(mesh);
+    }
+    if (!pads.length) return null;
+    const g = new THREE.CircleGeometry(1, 16, 0.35, Math.PI * 2 - 0.7); g.rotateX(-Math.PI / 2);   // a leaf with a notch
+    const mesh = new THREE.InstancedMesh(g, std(O.pad, { roughness: 0.45 }), pads.length);
+    mesh.receiveShadow = true; mesh.frustumCulled = false; group.add(mesh);
+    const place = t => {
+      pads.forEach((p, k) => {
+        q.setFromEuler(e.set(0, p.yaw + 0.12 * Math.sin(t * 0.25 + p.ph), 0));
+        mesh.setMatrixAt(k, m4.compose(v.set(p.x, p.y + 0.004 * Math.sin(t * 1.3 + p.ph), p.z), q, sc.set(p.s, 1, p.s)));
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+    };
+    place(0);
+    return place;
   }
 
   // ---------------------------------------------------------------- planners: a 1:1 port of robotnav.algorithms + Terrain
@@ -596,10 +1419,12 @@ const SCENE = /*__SCENE__*/null;
     const ar = (a / C) | 0, br = (b / C) | 0, diag = br !== ar && (b - br * C) !== (a - ar * C);
     return Math.hypot((diag ? Math.SQRT2 : 1) * COST.cell, H[b] - H[a]);
   }
+  const isOasisPalm = i => !!THEME.oasis && WDIST[i] <= 4;                 // trees by the desert's ponds are palms
+  const treeName = i => (isOasisPalm(i) ? THEME.oasis.treeName : THEME.treeName);
   function stepWhy(a, b) {
     const o = OBS[b];
     if (o === 3) return "the water is in the way";
-    if (o === 2) return `a ${THEME.treeName} is in the way`;
+    if (o === 2) return `a ${treeName(b)} is in the way`;
     if (o === 1) return "a rock is in the way";
     const ar = (a / C) | 0, br = (b / C) | 0, dr = br - ar, dc = (b - br * C) - (a - ar * C);
     if (dr && dc && (OBS[a + dr * C] || OBS[a + dc])) return "it squeezes between two obstacles";
@@ -975,23 +1800,23 @@ const SCENE = /*__SCENE__*/null;
     geo.computeVertexNormals();
     return geo;
   }
-  // The steel needs something to reflect: a small cube map of the current map's sky over darker ground, toned down
-  // toward grey so the spikes read as steel. Its mipmaps give the blur for rougher surfaces. Rebuilt with each map.
-  function skyEnvironment(T) {
-    const grey = (c, k) => { const l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return c.lerp(new THREE.Color(l, l, l), k); };
-    const zen = grey(lin(T.sky[0]), 0.7), mid = grey(lin(T.sky[1]), 0.7), hor = grey(lin(T.sky[2]), 0.7).multiplyScalar(1.15),
-          gnd = grey(lin(T.hemi[1]), 0.7).multiplyScalar(0.5), c = new THREE.Color(), N = 64;
+  // Something to reflect: a small cube map of the current map's sky (the dome's gradient and sun glow, no clouds) over
+  // darker ground, toned toward grey for the tank's steel and in true colours for water. Its mipmaps give the blur
+  // for rougher surfaces. Rebuilt with each map.
+  function skyEnvironment(T, greyK = 0.7) {
+    const S = skyColors(T), sd = new THREE.Vector3(T.sun[2][0], T.sun[2][1], T.sun[2][2]).normalize();
+    const gnd = new THREE.Color(T.hemi[1]).multiplyScalar(0.55), c = new THREE.Color(), grey = new THREE.Color(), N = 64;
     // direction through pixel (u, v) of each cube face, in the order +x, -x, +y, -y, +z, -z
     const faces = [(u, v) => [1, -v, -u], (u, v) => [-1, -v, u], (u, v) => [u, 1, v], (u, v) => [u, -1, -v], (u, v) => [u, -v, 1], (u, v) => [-u, -v, -1]];
     const tex = new THREE.CubeTexture(faces.map(dir => {
       const cv = document.createElement("canvas"); cv.width = cv.height = N;
       const g = cv.getContext("2d"), img = g.createImageData(N, N);
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-        const [x, y, z] = dir((i + 0.5) / N * 2 - 1, (j + 0.5) / N * 2 - 1), h = y / Math.hypot(x, y, z);   // height of the direction
-        if (h >= 0.45) c.copy(mid).lerp(zen, (h - 0.45) / 0.55);
-        else if (h >= 0) c.copy(hor).lerp(mid, h / 0.45);
-        else c.copy(hor).lerp(gnd, Math.min(1, -h * 5));
-        c.convertLinearToSRGB();
+        const [x, y, z] = dir((i + 0.5) / N * 2 - 1, (j + 0.5) / N * 2 - 1), l = Math.hypot(x, y, z);
+        if (y >= 0) skyRGB(S, sd, x / l, y / l, z / l, c);
+        else { const hl = Math.hypot(x, z) || 1; skyRGB(S, sd, x / hl, 0, z / hl, c).lerp(gnd, Math.min(1, -y / l * 5)); }   // ground below
+        const lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+        c.lerp(grey.setRGB(lum, lum, lum), greyK);
         img.data.set([c.r * 255, c.g * 255, c.b * 255, 255], (j * N + i) * 4);
       }
       g.putImageData(img, 0, 0); return cv;
@@ -1294,7 +2119,7 @@ const SCENE = /*__SCENE__*/null;
       n.set(-gx, 1, -gz).normalize();
       const water = OBS[i] === 3;
       const shade = water ? 1 : 0.6 + 0.55 * Math.max(0, n.dot(L));
-      const col = water ? mix(PAL.water, [0.1, 0.4, 0.55], clamp((MAP.sea - H[i]) / 3, 0, 1) * 0.5)
+      const col = water ? mix(PAL.water, PAL.waterDeep, clamp((WL[i] - H[i]) / 2.5, 0, 1) * 0.85)
         : OBS[i] === 2 ? treeC : OBS[i] === 1 ? rockC : groundRGB(i);
       d[i * 4] = Math.min(255, col[0] * 255 * shade); d[i * 4 + 1] = Math.min(255, col[1] * 255 * shade);
       d[i * 4 + 2] = Math.min(255, col[2] * 255 * shade); d[i * 4 + 3] = 255;
@@ -1524,8 +2349,9 @@ const SCENE = /*__SCENE__*/null;
     outTarget.copy(M.follow ? followP : courseCenter);
     outPos.copy(outTarget).add(sphV.setFromSphericalCoords(M.follow ? M.dist : M.dist * C / 96, M.phi, theta));
   }
-  function startFly(dur, arc) {
-    fly = { t: 0, dur, arc, fromPos: camera.position.clone(), fromTarget: controls.target.clone() };
+  function startFly(dur, arc, orbit) {              // orbit: swing round the target (spherical coordinates) instead of a straight glide
+    fly = { t: 0, dur, arc, fromPos: camera.position.clone(), fromTarget: controls.target.clone(),
+            orbit: orbit ? new THREE.Spherical().setFromVector3(off.subVectors(camera.position, controls.target)) : null };
     controls.enabled = false;
   }
   function setMode(m, instant) {
@@ -1665,7 +2491,7 @@ const SCENE = /*__SCENE__*/null;
   function say(text, tone) { PB.msg.textContent = text; PB.msg.dataset.tone = tone || ""; }
   function blockedWhy(cell) {
     const o = OBS[cell[0] * C + cell[1]];
-    return o === 3 ? "That's water. Pick a spot on land." : o === 2 ? `A ${THEME.treeName} is there. Pick an open spot.`
+    return o === 3 ? "That's water. Pick a spot on land." : o === 2 ? `A ${treeName(cell[0] * C + cell[1])} is there. Pick an open spot.`
       : o === 1 ? "A rock is there. Pick an open spot." : null;
   }
   function boxedIn(cell) {                          // a pocket of a few cells walled off by obstacles, water or steep slopes
@@ -2018,7 +2844,7 @@ const SCENE = /*__SCENE__*/null;
       return;
     }
     const i = cell[0] * C + cell[1], o = OBS[i];
-    PB.cursor.textContent = `Pointer: row ${cell[0]}, col ${cell[1]} · ` + (o === 3 ? "water" : o === 2 ? THEME.treeName : o === 1 ? "rock"
+    PB.cursor.textContent = `Pointer: row ${cell[0]}, col ${cell[1]} · ` + (o === 3 ? "water" : o === 2 ? treeName(i) : o === 1 ? "rock"
       : `${MAP.surfaces[SURF[i]].name.toLowerCase()}, ${H[i].toFixed(1)} m high`);
     const here = plan[plan.slot] && sameCell(plan[plan.slot], cell);
     cursorRing.show(cell, !here && whyNot(plan.slot, cell) ? BAD_COLOR : MARK_COLOR[plan.slot]);
@@ -2232,21 +3058,25 @@ const SCENE = /*__SCENE__*/null;
     const b = document.createElement("button");
     b.innerHTML = `<i style="background:${THEMES[m.key].swatch}"></i>${m.name}`;
     b.setAttribute("aria-pressed", "false");
-    b.onclick = () => { if (i !== mapIdx) loadMap(i); };
+    b.onclick = () => { if (i !== mapIdx) loadMap(i, true); };
     $("maps").appendChild(b);
     return b;
   });
-  function loadMap(i) {
+  function loadMap(i, intro) {
     if (plan.mode) exitPlan();
     mapIdx = i; MAP = SCENE.maps[i]; THEME = THEMES[MAP.key];
     R = MAP.rows; C = MAP.cols; H = MAP.heights; SURF = MAP.surface; OBS = MAP.obstacle;
     SCOST = MAP.surfaces.map(s => s.cost);
     hMin = Infinity; hMax = -Infinity;
     for (const h of H) { if (h < hMin) hMin = h; if (h > hMax) hMax = h; }
-    PAL = { surf: THEME.surf.map(p => p.map(hex)), steep: hex(THEME.steep), water: hex(THEME.water || "#1fa5b8"), seabed: hex(THEME.seabed || "#c9b98a") };
+    const W = THEME.water || { shallow: "#3fd3c7", deep: "#0a4a74" };
+    PAL = { surf: THEME.surf.map(p => p.map(hex)), steep: hex(THEME.steep), water: hex(W.shallow), waterDeep: hex(W.deep),
+            seabed: hex(THEME.seabed || "#c9b98a"), wet: THEME.wet ? hex(THEME.wet) : null };
+    waterLevels();
     DUSTS = THEME.dust.map(d => Object.assign({}, d, { col: hex(d.col) }));
     courseCenter.set(0, hMin + (hMax - hMin) * 0.35, 0);
     applyTheme(); rover.setSky(THEME); buildWorld();
+    settleUntil = performance.now() + 2500; slowFor = 0;
     marks.mesh.material.color.copy(lin(THEME.marks));
     mapBtns.forEach((b, k) => b.setAttribute("aria-pressed", String(k === i)));
     $("eyebrow").textContent = `${MAP.name} · seed ${MAP.seed}`;
@@ -2276,6 +3106,12 @@ const SCENE = /*__SCENE__*/null;
       select(bestPlanner(ranked).name, false);
     } else parkRover();
     setMode("course", true);
+    if (intro && !reduceMotion) {                   // open with a fly-in: from high above, swinging down into the overview
+      sph.setFromVector3(off.subVectors(camera.position, controls.target));
+      sph.radius *= 1.9; sph.phi *= 0.4; sph.theta += 1.1;
+      camera.position.copy(controls.target).add(off.setFromSpherical(sph));
+      startFly(2.8, 0, true);
+    }
   }
 
   // ---------------------------------------------------------------- per-frame
@@ -2294,8 +3130,35 @@ const SCENE = /*__SCENE__*/null;
     tmpV.set(rover.track.x, 0, rover.track.rear + 0.1); rover.group.localToWorld(tmpV);
     marks.add(lx, lz, tmpV.x, tmpV.z, rightH.x * hw, rightH.z * hw);
   }
+  // ---------------------------------------------------------------- quality governor
+  // Full quality to start. While frames stay slow (under ~40 fps for a few seconds) it steps down, once per
+  // slow spell and never back up: render scale first, then soft leaf edges, then the grass and the shadow
+  // map's size. A just-loaded map gets a moment to settle first (shaders compile on its first frames).
+  // ?quality=high in the address pins full quality.
+  const QUALITY = [{ scale: 2, a2c: true, tufts: true, shadow: 2048 }, { scale: 1.5, a2c: true, tufts: true, shadow: 2048 },
+                   { scale: 1.25, a2c: false, tufts: true, shadow: 2048 }, { scale: 1, a2c: false, tufts: false, shadow: 1024 }];
+  const qualityPinned = /[?&]quality=high\b/.test(location.search);
+  let qLevel = 0, slowFor = 0, settleUntil = 0;
+  function applyQuality() {
+    const Q = QUALITY[qLevel];
+    if (renderer.getPixelRatio() !== Math.min(devicePixelRatio, Q.scale)) { renderer.setPixelRatio(Math.min(devicePixelRatio, Q.scale)); sizeRenderer(); }   // the view stays put
+    if (sun.shadow.mapSize.x !== Q.shadow) {
+      sun.shadow.mapSize.set(Q.shadow, Q.shadow);
+      if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+    }
+    if (!world) return;
+    if (world.tufts) world.tufts.visible = Q.tufts;
+    world.group.traverse(o => { if (o.material && o.material.alphaTest && o.material.alphaToCoverage !== Q.a2c && o.material.isMeshStandardMaterial) {
+      o.material.alphaToCoverage = Q.a2c; o.material.needsUpdate = true; } });
+  }
+  function govern(realDt, now) {
+    if (qualityPinned || document.hidden || now < settleUntil || qLevel >= QUALITY.length - 1) return;
+    slowFor = realDt > 1 / 40 ? slowFor + Math.min(realDt, 0.5) : Math.max(0, slowFor - realDt);
+    if (slowFor > 2.5) { qLevel++; slowFor = 0; settleUntil = now + 1500; applyQuality(); }
+  }
   let prevT = performance.now(), hudT = 1, emitAcc = 0;
   function frame(now) {
+    govern((now - prevT) / 1000, now);
     const dt = Math.max(0, Math.min(0.05, (now - prevT) / 1000)); prevT = now;
     const t = now / 1000, total = current.cost, playback = +speedEl.value, driving = !current.park;
 
@@ -2326,6 +3189,7 @@ const SCENE = /*__SCENE__*/null;
     current.curve.getPointAt(Math.min(1, (s + 5) / current.len), lookP); lookP.sub(P);
     const lookYaw = clamp(Math.atan2(lookP.dot(rightH), lookP.dot(fwd)), -1, 1) * 0.9;
     rover.animate(t, v, dt, lookYaw, finishing);
+    roverSpot.value.set(P.x, gy + 0.45, P.z);
 
     // 3. dust, tread marks, route ahead
     if (v > 0) {
@@ -2334,6 +3198,7 @@ const SCENE = /*__SCENE__*/null;
       if (s - markS >= 0.3) { markS = s; addMark(); }
     }
     dust.update(dt);
+    if (!reduceMotion) { waterClock.value = windClock.value = t; if (world.tick) world.tick(t); }
     drapeRing(P.x, P.z, 1 + 0.03 * Math.sin(t * 3));
     ringMat.opacity = 0.7 + 0.25 * Math.sin(t * 3);
     if (current.tube) {                             // the route ahead of the rover (the planner shows all of it)
@@ -2357,9 +3222,13 @@ const SCENE = /*__SCENE__*/null;
       fly.t += dt;
       const e = ease(Math.min(1, fly.t / fly.dur));
       rigPose(M, endPos, endTarget);
-      camera.position.lerpVectors(fly.fromPos, endPos, e);
-      camera.position.y += Math.sin(Math.PI * e) * fly.arc;
       controls.target.lerpVectors(fly.fromTarget, endTarget, e);
+      if (fly.orbit) {
+        const o = fly.orbit; sph.setFromVector3(off.subVectors(endPos, endTarget));
+        sph.set(o.radius + (sph.radius - o.radius) * e, o.phi + (sph.phi - o.phi) * e, o.theta + wrapPi(sph.theta - o.theta) * e);
+        camera.position.copy(controls.target).add(off.setFromSpherical(sph));
+      } else camera.position.lerpVectors(fly.fromPos, endPos, e);
+      camera.position.y += Math.sin(Math.PI * e) * fly.arc;
       camera.lookAt(controls.target);
       if (e >= 1) { fly = null; controls.enabled = true; }
     } else {
@@ -2379,12 +3248,21 @@ const SCENE = /*__SCENE__*/null;
       const far = camera.position.distanceTo(controls.target) > 48;
       if (far !== farView) { farView = far; refreshLayers(); }
     }
-    const floor = Math.max(groundH(camera.position.x, camera.position.z), MAP.sea != null ? MAP.sea : -1e9) + 1.5;
+    const floor = Math.max(groundH(camera.position.x, camera.position.z), waterAt(camera.position.x, camera.position.z)) + 1.5;
     if (camera.position.y < floor) camera.position.y = floor;
     if (mode === "drone" && !fly && !reduceMotion) bob.set(Math.sin(t * 0.7) * 0.16, Math.sin(t * 1.13) * 0.2, Math.cos(t * 0.61) * 0.16);
     else bob.set(0, 0, 0);
     camera.position.add(bob);
     easeView(dt);
+    // shadows: the whole map from afar; from close by, a box round the rover reaching further ahead than behind
+    if (M.follow) {
+      const camD = camera.position.distanceTo(controls.target);
+      const half = Math.min(C * 0.75, Math.max(24, Math.ceil((camD * 1.4 + 10) / 4) * 4));
+      off.subVectors(controls.target, camera.position).setY(0);
+      const ahead = off.lengthSq() > 1e-6 ? half * 0.45 / off.length() : 0;
+      placeSun(followP.x + off.x * ahead, followP.z + off.z * ahead, half);
+    } else placeSun(0, 0, C * 0.75);
+    updateSky(t);
 
     // 5. map and telemetry
     if (!plan.mode) drawMinimap(P);
@@ -2407,12 +3285,15 @@ const SCENE = /*__SCENE__*/null;
   }
 
   const dbSize = new THREE.Vector2();
-  function resize() {
-    const w = stage.clientWidth, h = stage.clientHeight;
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h; camera.fov = w < 700 ? 60 : 50; camera.updateProjectionMatrix();
+  function sizeRenderer() {                         // the drawing buffer (and the dust's point scale) for the current size and scale
+    renderer.setSize(stage.clientWidth, stage.clientHeight, false);
     renderer.getDrawingBufferSize(dbSize);
     dust.mat.uniforms.uScale.value = dbSize.y / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+  }
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    camera.aspect = w / h; camera.fov = w < 700 ? 60 : 50; camera.updateProjectionMatrix();
+    sizeRenderer();
     if (mode === "plan" && !fly && MAP) { planView = computePlanView(); rigPose(MODES.plan, camera.position, controls.target); controls.update(); }
     if (MAP) viewFit = computeOverviewFit();
   }
@@ -2421,7 +3302,7 @@ const SCENE = /*__SCENE__*/null;
   if (matchMedia("(max-width: 760px)").matches) $("board").open = false;
   resize();
   sizeMinimap();
-  loadMap(0);
+  loadMap(0, true);
   requestAnimationFrame(frame);
 })();
 
