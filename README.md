@@ -1,5 +1,8 @@
 # Rover Hill Course — 3D Off-Road Robot Navigation
 
+**[▶ Open the live demo](https://r0ck574r.github.io/Robot-Navigating-Obstacles/)**: it runs in your browser, on a laptop or a phone,
+with nothing to install. Press **▶ Tour** for a guided one-minute run through all three maps.
+
 A tracked rover, a matte-black rhomboid tank with a hedgehog coat of steel spikes, finds its way
 across three hilly maps (grassland, desert dunes with oasis ponds, and a tropical island) using five pathfinding
 algorithms. Each map opens empty: add any of its 20 preset routes, or set your own start and
@@ -9,7 +12,21 @@ A dashed line shows the shortest route a robot that ignores hills would take, so
 reading the terrain buys you. Python generates the maps, picks the routes, and is the reference
 implementation of every planner.
 
-![The viewer on the desert map at golden hour: the tank drives its quickest route past an oasis of palms toward the finish flag on a dune, under a sky-blue and pink sky, with the planners ranked on the stage board](docs/screenshot.png)
+![The tour on the desert map: the camera flies in over the dunes and oases, five planners race the same trip, and the drone follows the tank along the quickest route](docs/demo.gif)
+
+## Show it to someone
+
+- **The live demo** (https://r0ck574r.github.io/Robot-Navigating-Obstacles/) is the same page as `output/course_3d.html`,
+  served by GitHub Pages from `docs/`. Shared links show a preview card with a picture of the
+  desert oasis.
+- **▶ Tour** (top left, or add `#tour` to the address) plays a guided loop: each map flies in,
+  five planners race its showcase path, the drone and chase cameras follow the rover, and the
+  overview lays every planner's route side by side. A caption says what's happening at each step.
+  Touch anything to take over; the tour doesn't change the paths your browser remembers.
+- **Links to a view**: the address keeps up with what's on screen, so you can copy it and send it.
+  [`#desert/p19/drone`](https://r0ck574r.github.io/Robot-Navigating-Obstacles/#desert/p19/drone) opens the desert's path P19 past
+  both oases with the drone camera, [`#island/p20/chase`](https://r0ck574r.github.io/Robot-Navigating-Obstacles/#island/p20/chase)
+  rides along the island's west coast, and `#tour/island` starts the tour on the island.
 
 ## Run it yourself
 
@@ -68,8 +85,8 @@ Or double-click `output/course_3d.html` in your file browser. The page needs int
 time to load the 3D library (Three.js). Pick a map at the top left, then click **More paths** or
 **Set start & finish** to send the tank driving.
 
-> Just want to look? `output/course_3d.html` is already in the repo: download it and open it,
-> no Python needed.
+> Just want to look? Open the [live demo](https://r0ck574r.github.io/Robot-Navigating-Obstacles/), or download
+> `output/course_3d.html` from the repo and open it. Neither needs Python.
 
 ### More commands
 
@@ -82,8 +99,11 @@ Run these from the same terminal, with the virtual environment active.
 | `python main.py route --map desert --start 80,10 --goal 12,85` | Same, for your own START and FINISH (the `row, col` shown in the viewer) |
 | `python main.py score-route route.json` | Score a route you drew in the viewer and copied |
 | `python main.py terrain-bench` | Hills, slope limit and obstacle sweep (about 25 seconds) |
-| `python -m pytest -q` | Run the 141 tests |
+| `python -m pytest -q` | Run the 143 tests |
 | `python main.py demo`, `python main.py benchmark` | The original 2D grid version |
+
+`python main.py course` writes the viewer twice: `output/course_3d.html` to open yourself, and
+`docs/index.html`, the live demo, which adds the tags for link previews.
 
 ## Using the viewer
 
@@ -155,6 +175,8 @@ they read as steel on every map.
 | Grassland | rolling green hills, up to 12 m | grass 1.0, tall grass 1.8 | trees, rock clusters |
 | Desert | dune field: gentle windward slopes, steep slip faces, three oases | firm sand 1.0, soft sand 2.4, rocky ground 1.3, oasis grass 1.0 | cacti, sandstone boulders, oasis ponds and palms |
 | Island | ragged coast, beach, central peak | grass 1.0, sand 1.6, jungle 2.0 | palm trees, rocks, the sea |
+
+![The viewer on the desert map at golden hour: the tank drives its quickest route past an oasis of palms toward the finish flag on a dune, under a sky-blue and pink sky, with the planners ranked on the stage board](docs/screenshot.png)
 
 The desert's oases are carved in Python, so they are real obstacles: the planners route around them
 and the browser and Python still agree. Each sits in the lowest broad ground between the dunes, stretched
@@ -272,11 +294,12 @@ Hand-drawn routes are scored by the same rules in both (`robotnav.terrain.evalua
 |---|---|
 | `robotnav/terrain.py` | Height maps, drive-time model, the three themed maps (`make_map`) and the desert's oases, `plan_pair`, `shortest_route`, `preset_routes`, `evaluate_route` |
 | `robotnav/algorithms.py` | BFS, Dijkstra, A*, Weighted A*, Greedy — one shared priority-queue engine |
-| `robotnav/scene3d.py` | Exports the three maps and their preset paths into the self-contained viewer |
-| `robotnav/viewer3d.html` | Three.js viewer: maps, sky, water, palms and trees, planners in the browser, preset paths, picking, drawing, drone camera, the spiked tank |
+| `robotnav/scene3d.py` | Exports the three maps and their preset paths into the self-contained viewer (and the live demo page, with link previews) |
+| `robotnav/viewer3d.html` | Three.js viewer: maps, sky, water, palms and trees, planners in the browser, preset paths, picking, drawing, drone camera, the spiked tank, the tour, links to a view |
+| `docs/` | The live demo served by GitHub Pages (`index.html`, built by `python main.py course`), its preview image, and the README's pictures |
 | `robotnav/terrain_bench.py` | Sweeps hill height, slope limit and obstacle density |
 | `robotnav/grid.py`, `visualize.py`, `benchmark.py` | Original 2D grid world, plots and benchmark |
-| `tests/` | 141 checks: optimality on every map, the shortest route, all 20 presets per map, the desert's oases, grade limit, water, route rules, map rebuilds, the `row,col` command line |
+| `tests/` | 143 checks: optimality on every map, the shortest route, all 20 presets per map, the desert's oases, grade limit, water, route rules, map rebuilds, the `row,col` command line, the page head and link previews |
 
 ## Findings
 

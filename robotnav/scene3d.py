@@ -8,6 +8,7 @@ the tests check both give identical routes and times.
 from __future__ import annotations
 
 import json
+from html import escape
 from pathlib import Path
 
 import numpy as np
@@ -38,11 +39,38 @@ def map_scene(t: Terrain) -> dict:
     )
 
 
-def write_viewer(maps: list[Terrain], out: str | Path, scenes: list[dict] | None = None) -> Path:
-    """Write the viewer. Pass `scenes` (from map_scene) if you already built them; picking presets takes a few seconds."""
+TITLE = "Rover Hill Course"
+DESCRIPTION = ("A rover finds the quickest path over hilly terrain: five pathfinding algorithms raced in 3D, "
+               "with a drone camera, three maps and a guided tour. Runs in the browser.")
+
+
+def write_viewer(maps: list[Terrain], out: str | Path, scenes: list[dict] | None = None,
+                 site_url: str | None = None) -> Path:
+    """Write the viewer as a standalone HTML page.
+
+    Pass `scenes` (from map_scene) if you already built them; picking presets takes a few seconds.
+    Pass `site_url` (where the page will be hosted, ending in "/") to add link-preview tags, so a shared
+    link shows the title, a description and social.png from that address.
+    """
     scene = dict(cost=dict(uphill=maps[0].uphill_penalty, cell=maps[0].cell_size, short_tie=SHORTEST_TIE),
                  maps=scenes if scenes is not None else [map_scene(t) for t in maps])
-    html = TEMPLATE.read_text().replace("/*__SCENE__*/null", json.dumps(scene, separators=(",", ":")))
+    body = TEMPLATE.read_text().replace("/*__SCENE__*/null", json.dumps(scene, separators=(",", ":")))
+    head = ["<!doctype html>", '<html lang="en">', '<meta charset="utf-8">',
+            f'<meta name="description" content="{escape(DESCRIPTION)}">']
+    if site_url:
+        image = site_url + "social.png"
+        head += [f'<link rel="canonical" href="{escape(site_url)}">',
+                 '<meta property="og:type" content="website">',
+                 f'<meta property="og:title" content="{escape(TITLE)}">',
+                 f'<meta property="og:description" content="{escape(DESCRIPTION)}">',
+                 f'<meta property="og:url" content="{escape(site_url)}">',
+                 f'<meta property="og:image" content="{escape(image)}">',
+                 '<meta property="og:image:width" content="1200">', '<meta property="og:image:height" content="630">',
+                 '<meta name="twitter:card" content="summary_large_image">',
+                 f'<meta name="twitter:title" content="{escape(TITLE)}">',
+                 f'<meta name="twitter:description" content="{escape(DESCRIPTION)}">',
+                 f'<meta name="twitter:image" content="{escape(image)}">']
     out = Path(out)
-    out.write_text(html)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(head) + "\n" + body)
     return out

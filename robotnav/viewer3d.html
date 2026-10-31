@@ -59,6 +59,15 @@ h1 { font-family: var(--f-display); font-weight: 700; font-size: 30px; line-heig
 .maps button { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; }
 .maps button[aria-pressed="true"] { border-color: var(--flag); color: var(--flag); background: var(--flag-soft); }
 .maps i { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px var(--edge); }
+.maps .tour-btn { border-color: var(--accent); color: var(--accent); background: transparent; }
+.maps .tour-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--flag-ink); }   /* not a map: never the map highlight */
+/* the tour's caption: the free middle of the screen, above the controls */
+.tour-cap { grid-column: 2; grid-row: 2; align-self: end; justify-self: center; width: min(34rem, 100%); box-sizing: border-box;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 4px 12px; padding: 10px 12px 11px 16px; }
+.tour-step { font-family: var(--f-data); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.tour-text { grid-column: 1; margin: 0; font-size: 14.5px; line-height: 1.45; }
+.tour-text b { color: var(--flag); font-weight: 600; }
+#tour-stop { grid-column: 2; grid-row: 1 / 3; padding: 6px 10px; }
 .specs { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--f-data); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .specs b { color: var(--ink); font-weight: 600; }
 
@@ -220,6 +229,8 @@ input[type=range] { accent-color: var(--flag); width: 84px; }
   .draw-pointer { display: none; }                 /* no hovering on touch screens */
   .paths { width: auto; max-height: 72%; }
   .paths-note { display: none; }
+  .tour-cap { grid-column: 1; grid-row: 2; align-self: start; width: auto; padding: 8px 10px 9px 12px; }
+  .tour-text { font-size: 13px; }
 }
 @media (max-width: 380px) { .paths-time { display: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -261,6 +272,12 @@ input[type=range] { accent-color: var(--flag); width: 84px; }
     </div>
     <canvas id="minimap" role="img" aria-label="Map with the rover, the drone and the planned routes"></canvas>
     <div class="map-key"><span><i class="k-rover"></i>Rover</span><span><i class="k-drone"></i>Drone</span><span><i class="k-start"></i>Start</span><span><i class="k-finish"></i>Finish</span></div>
+  </section>
+
+  <section class="board tour-cap" id="tour-cap" aria-label="Tour" aria-live="polite" hidden>
+    <span class="tour-step" id="tour-step"></span>
+    <button class="chip" id="tour-stop">Stop</button>
+    <p class="tour-text" id="tour-text"></p>
   </section>
 
   <section class="board paths" id="paths" aria-label="More paths" hidden>
@@ -371,7 +388,8 @@ const SCENE = /*__SCENE__*/null;
   // the horizon (the haze round a map seen from above); glow is the sun's; cloud and shade light and shadow the clouds.
   const THEMES = {
     grassland: {
-      swatch: "#5aa83c", skirt: "#4b3a28", ground: [0, 0], tufts: [[2, 0.26], [3.2, 0.5]],         // ground detail per surface: 0 grass, 1 sand, 2 rock
+      swatch: "#5aa83c", skirt: "#4b3a28", ground: [0, 0], tufts: [[2, 0.26], [3.2, 0.5]],
+      tour: { path: 14, intro: "Rolling green hills up to 12 m, with tall grass that slows the rover, trees and rock clusters.", slow: "tall grass" },         // ground detail per surface: 0 grass, 1 sand, 2 rock
       sky: { zen: "#4d8fe0", top: "#93bff0", mid: "#cdb6ec", low: "#ffbad5", hor: "#ffd3dc", void: "#e9b0d2", glow: "#ffd7ad",
              cloud: "#fff6f6", shade: "#cdb9e3" },
       sun: ["#ffdcb6", 1.55, [-0.864, 0.7, -0.504]], hemi: ["#c9cff7", "#6b5c3c", 0.8],
@@ -382,6 +400,7 @@ const SCENE = /*__SCENE__*/null;
     },
     desert: {
       swatch: "#e0b46c", skirt: "#9a6a3c", ground: [1, 1, 2, 0], tufts: [null, null, null, [2.4, 0.3]],
+      tour: { path: 18, intro: "Dunes with steep slip faces, soft sand that slows the rover to less than half speed, and three oases.", slow: "soft sand" },
       sky: { zen: "#5295dc", top: "#99c2ee", mid: "#d4b7e6", low: "#ffbacb", hor: "#ffd3cf", void: "#edb2c6", glow: "#ffd09a",
              cloud: "#fff5ef", shade: "#d3bbdb" },
       sun: ["#ffd8ad", 1.6, [-0.942, 0.7, 0.336]], hemi: ["#d3cdf2", "#9a7448", 0.72],
@@ -397,6 +416,7 @@ const SCENE = /*__SCENE__*/null;
     },
     island: {
       swatch: "#2bb3c0", skirt: "#7a6a4a", ground: [0, 1, 0], tufts: [[2, 0.26], null, [3.2, 0.45]],
+      tour: { path: 19, intro: "A ragged coast, beaches, jungle and a central peak, with the sea all round.", slow: "sand and jungle" },
       sky: { zen: "#3d8de2", top: "#8ac0f3", mid: "#c8b5ef", low: "#ffb8d6", hor: "#ffd3de", void: "#dfaedb", glow: "#ffd4ae",
              cloud: "#fff6f8", shade: "#c8b7e4" },
       sun: ["#ffdfbd", 1.5, [-0.781, 0.7, -0.625]], hemi: ["#c6d2f8", "#3c6a4a", 0.82],
@@ -2309,7 +2329,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     const cx0 = (Math.min(...pts.map(p => p[0])) + Math.max(...pts.map(p => p[0]))) / 2;
     const cy0 = (Math.min(...pts.map(p => p[1])) + Math.max(...pts.map(p => p[1]))) / 2;
     const blocks = [[-1e4, -1e4, m, 1e4], [W - m, -1e4, 1e4, 1e4], [-1e4, -1e4, 1e4, m], [-1e4, H - m, 1e4, 1e4]];   // screen edges
-    for (const id of ["title-board", "board", "drone", "paths", "tele", "planbar"]) {        // every panel on show
+    for (const id of ["title-board", "board", "drone", "paths", "tele", "planbar", "tour-cap"]) {   // every panel on show
       const el = $(id), r = el.getBoundingClientRect();                                     // (a phone's path list is a
       if (!el.hidden && r.width && !(id === "paths" && narrow())) blocks.push([r.left - m, r.top - m, r.right + m, r.bottom + m]);   // brief overlay)
     }
@@ -2929,6 +2949,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   // the added paths, the route being driven and a drawn route per map survive a reload in this browser (a convenience only)
   const saveKey = () => `rover-hill-v2:${MAP.key}:${MAP.seed}:${C}x${R}`;
   function saveState() {
+    if (tour) return;                               // a tour shows things off; it doesn't change your saved paths
     try {
       localStorage.setItem(saveKey(), JSON.stringify({ pair: parked ? null : [START, GOAL], clicks: parked ? [] : draw.clicks, extras: [...extraOn] }));
     } catch (e) { /* storage unavailable */ }
@@ -3062,6 +3083,10 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     $("maps").appendChild(b);
     return b;
   });
+  const tourBtn = document.createElement("button");
+  tourBtn.className = "tour-btn"; tourBtn.id = "tour-btn"; tourBtn.setAttribute("aria-pressed", "false"); tourBtn.textContent = "▶ Tour";
+  tourBtn.title = "A guided one-minute run through all three maps. Touch anything to take over.";
+  $("maps").appendChild(tourBtn);
   function loadMap(i, intro) {
     if (plan.mode) exitPlan();
     mapIdx = i; MAP = SCENE.maps[i]; THEME = THEMES[MAP.key];
@@ -3114,6 +3139,112 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     }
   }
 
+  // ---------------------------------------------------------------- the tour: the viewer shows itself off
+  // One press (or #tour in the address) plays a guided loop for showing the project to someone: each map flies in,
+  // five planners race that map's showcase path, the drone and then the chase camera follow the rover, and the
+  // overview lays every planner's route side by side, with a caption saying what's going on. It runs on the frame
+  // clock, so it pauses with the page. Touching anything hands control back; the tour leaves no saved paths behind.
+  const TOUR_MAPS = ["desert", "island", "grassland"].filter(k => SCENE.maps.some(m => m.key === k));
+  let tour = null;                                  // { k: which map of TOUR_MAPS, t: seconds into its act, step }
+  const tourCap = $("tour-cap");
+  function tourSay(step, html) { $("tour-step").textContent = step; $("tour-text").innerHTML = html; }
+  function raceNumbers() {                          // what the stage board shows, in a sentence's worth of numbers
+    const by = k => routes.find(r => r.key === k && r.found);
+    const quick = routes.filter(r => r.found && !r.user && r.key !== "short").sort((a, b) => a.cost - b.cost)[0];
+    return { quick, short: by("short"), astar: by("astar"), wastar: by("wastar"), greedy: by("greedy") };
+  }
+  const pct = (a, b) => `${Math.round((a / b - 1) * 100)}%`;
+  const TOUR_STEPS = [                              // [seconds into a map's act, what happens]
+    [0, () => {
+      const key = TOUR_MAPS[tour.k], i = SCENE.maps.findIndex(m => m.key === key), name = SCENE.maps[i].name;
+      tourSay(`Tour · ${name} · ${tour.k + 1} of ${TOUR_MAPS.length}`, `<b>${name}.</b> ${THEMES[key].tour.intro}`);
+      if (showAll) $("t-routes").click();           // one route at a time to start with
+      loadMap(i, true);
+    }],
+    [3.4, () => {
+      const p = MAP.presets[THEME.tour.path];
+      drivePreset(THEME.tour.path, false);
+      const n = raceNumbers();
+      tourSay(`Tour · ${MAP.name} · path P${THEME.tour.path + 1}, ${p.name}`,
+        `Five planners race the same trip. <b>${n.quick.name}</b> is quickest at <b>${fmtTime(n.quick.cost)}</b>; the shortest route ignores the hills and takes ${fmtTime(n.short.cost)}.`);
+    }],
+    [8, () => {
+      setMode("drone");
+      tourSay(`Tour · ${MAP.name} · drone camera`, `The drone follows the rover. It drives by the planners' clock: slower on ${THEME.tour.slow} and on climbs.`);
+    }],
+    [18.5, () => {
+      setMode("chase");
+      tourSay(`Tour · ${MAP.name} · chase camera`, `The same drive from just behind the rover. Green ring: where it's heading next.`);
+    }],
+    [24, () => {
+      setMode("course");
+      if (!showAll) $("t-routes").click();
+      const n = raceNumbers();
+      const lines = [];
+      if (n.greedy) lines.push(`Greedy rushes at the goal and takes <b>${pct(n.greedy.cost, n.quick.cost)}</b> longer`);
+      if (n.wastar && n.astar) lines.push(`Weighted A* searches <b>${Math.max(1, Math.round(n.astar.nodes / n.wastar.nodes))}×</b> fewer cells than A* for ${pct(n.wastar.cost, n.astar.cost)} more time`);
+      tourSay(`Tour · ${MAP.name} · every planner`, `Every planner's route, side by side. ${lines.join("; ")}.`);
+    }],
+    [31, () => { tour.k = (tour.k + 1) % TOUR_MAPS.length; tour.t = -1e-9; tour.step = 0; }],   // on to the next map
+  ];
+  function startTour(fromMap) {
+    if (plan.mode) exitPlan();
+    if (!pathsPanel.hidden) showPaths(false);
+    const at = TOUR_MAPS.indexOf(fromMap);
+    tour = { k: at >= 0 ? at : 0, t: 0, step: 0 };
+    tourBtn.setAttribute("aria-pressed", "true"); tourBtn.textContent = "■ Stop tour";
+    tourCap.hidden = false;
+    playing = true; syncPlay();
+  }
+  function stopTour() {
+    if (!tour) return;
+    tour = null;
+    tourBtn.setAttribute("aria-pressed", "false"); tourBtn.textContent = "▶ Tour";
+    tourCap.hidden = true;
+    if (mode === "course") viewFit = computeOverviewFit();   // the caption's room goes back to the map
+    saveState();
+  }
+  function tourTick(dt) {
+    tour.t += dt;
+    while (tour && tour.step < TOUR_STEPS.length && tour.t >= TOUR_STEPS[tour.step][0]) {
+      const run = TOUR_STEPS[tour.step][1]; tour.step++; run();
+    }
+  }
+  tourBtn.onclick = () => (tour ? stopTour() : startTour(MAP && MAP.key));
+  $("tour-stop").onclick = stopTour;
+  // anything you do takes over from the tour (the tour's own buttons excepted); the press itself still counts
+  const takeOver = ev => { if (tour && !(ev.target.closest && ev.target.closest("#tour-btn, #tour-stop"))) stopTour(); };
+  addEventListener("pointerdown", takeOver, true);
+  addEventListener("wheel", takeOver, { capture: true, passive: true });
+  addEventListener("keydown", ev => { if (tour && !["Shift", "Control", "Alt", "Meta"].includes(ev.key)) takeOver(ev); }, true);
+
+  // ---------------------------------------------------------------- links to a view: #desert/p19/drone, or #tour
+  // The address keeps up with the map, the path being driven and the camera, so a copied link opens the same view.
+  const VIEW_WORD = { drone: "drone", top: "top", chase: "chase" };
+  function readHash() {
+    const parts = decodeURIComponent(location.hash.slice(1)).toLowerCase().split("/").filter(Boolean);
+    const out = { tour: parts[0] === "tour" };
+    const mi = SCENE.maps.findIndex(m => m.key === (out.tour ? parts[1] : parts[0]));
+    if (mi >= 0) out.map = mi;
+    for (const w of parts) {
+      const pm = /^p(\d{1,2})$/.exec(w);
+      if (pm) out.path = +pm[1] - 1;
+      if (Object.keys(VIEW_WORD).includes(w)) out.view = w;
+    }
+    return out;
+  }
+  let hashNow = "";
+  function syncHash() {                             // called every frame; writes only when the view changes
+    if (tour || !MAP) return;
+    const d = drivenPreset(), parts = [MAP.key];
+    if (d >= 0) parts.push(`p${d + 1}`);
+    if (!plan.mode && VIEW_WORD[mode]) parts.push(VIEW_WORD[mode]);
+    const h = "#" + parts.join("/");
+    if (h === hashNow) return;
+    hashNow = h;
+    try { history.replaceState(null, "", h); } catch (e) { /* some embeds don't allow it */ }
+  }
+
   // ---------------------------------------------------------------- per-frame
   let side = 1;
   function spawnDust(surf, v) {
@@ -3159,6 +3290,8 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   let prevT = performance.now(), hudT = 1, emitAcc = 0;
   function frame(now) {
     govern((now - prevT) / 1000, now);
+    if (tour) tourTick(Math.min(0.25, Math.max(0, (now - prevT) / 1000)));
+    syncHash();
     const dt = Math.max(0, Math.min(0.05, (now - prevT) / 1000)); prevT = now;
     const t = now / 1000, total = current.cost, playback = +speedEl.value, driving = !current.park;
 
@@ -3254,6 +3387,9 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     else bob.set(0, 0, 0);
     camera.position.add(bob);
     easeView(dt);
+    // haze: from about the distance of what the camera looks at, so a map seen from far out (the opening fly-in,
+    // a zoomed-out overview) stays readable instead of fading into the sky; close views keep the map's own haze
+    if (!M.pan) { scene.fog.near = Math.max(C * 0.9, camera.position.distanceTo(controls.target) * 0.75); scene.fog.far = scene.fog.near + C * 1.5; }
     // shadows: the whole map from afar; from close by, a box round the rover reaching further ahead than behind
     if (M.follow) {
       const camD = camera.position.distanceTo(controls.target);
@@ -3299,10 +3435,22 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   }
   addEventListener("resize", resize);
   $("board").addEventListener("toggle", () => { if (MAP) viewFit = computeOverviewFit(); });   // an open board takes room
+  // and the overview re-fits whenever a panel changes size: the board fills in when a route arrives, a caption
+  // changes, the planner bar opens. The picture glides to the new framing (easeView).
+  if (window.ResizeObserver) {
+    const refit = new ResizeObserver(() => { if (MAP && mode === "course") viewFit = computeOverviewFit(); });
+    for (const id of ["title-board", "board", "drone", "paths", "tele", "planbar", "tour-cap"]) refit.observe($(id));
+  }
   if (matchMedia("(max-width: 760px)").matches) $("board").open = false;
   resize();
   sizeMinimap();
-  loadMap(0, true);
+  const link = readHash();
+  if (link.tour) startTour(link.map !== undefined ? SCENE.maps[link.map].key : null);   // the tour opens the first map itself
+  else {
+    loadMap(link.map !== undefined ? link.map : 0, link.path === undefined && !link.view);
+    if (link.path >= 0 && link.path < MAP.presets.length) drivePreset(link.path, !!link.view && MODES[link.view].follow);
+    if (link.view && mode !== link.view) setMode(link.view);
+  }
   requestAnimationFrame(frame);
 })();
 

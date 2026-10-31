@@ -23,6 +23,8 @@ from robotnav.benchmark import plot_benchmark, run_benchmark, run_map_type_bench
 from robotnav.visualize import animate_search, plot_comparison
 
 OUT = Path("output")
+ROOT = Path(__file__).resolve().parent
+PAGES_URL = "https://r0ck574r.github.io/Robot-Navigating-Obstacles/"   # where GitHub Pages serves docs/
 
 
 def demo(args) -> None:
@@ -107,12 +109,15 @@ def course(args) -> None:
     maps = [solvable_map(theme, seed=args.seed, size=args.size, max_grade=args.grade) for theme in THEMES]
     scenes = [map_scene(t) for t in maps]
     out = write_viewer(maps, OUT / "course_3d.html", scenes=scenes)
+    site = write_viewer(maps, ROOT / "docs" / "index.html", scenes=scenes, site_url=PAGES_URL)   # the live demo
+    (site.parent / ".nojekyll").touch()             # GitHub Pages: serve the files as they are
     for t, sc in zip(maps, scenes):
         ps = sc["presets"]
         longer = [p["short_time"] / p["time"] - 1 for p in ps]
         print(f"{t.meta['theme'].title():<10} (seed {t.meta['seed']}): {len(ps)} preset paths; on them the hill-blind "
               f"shortest route takes {min(longer):.0%} to {max(longer):.0%} longer than the quickest")
     print(f"\n3D viewer: {out.resolve()}  (open in a browser)")
+    print(f"Live demo page (GitHub Pages serves docs/): {site.resolve()}")
     print("List a map's paths with: python main.py paths --map grassland")
 
 
