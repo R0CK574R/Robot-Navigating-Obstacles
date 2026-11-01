@@ -1,7 +1,7 @@
 # Rover Hill Course — 3D Off-Road Robot Navigation
 
 **[▶ Open the live demo](https://r0ck574r.github.io/Robot-Navigating-Obstacles/)**: it runs in your browser, on a laptop or a phone,
-with nothing to install. Press **▶ Tour** for a guided one-minute run through all three maps.
+with nothing to install. Press **▶ Tour** for a guided run through all three maps (under two minutes).
 
 A tracked rover, a matte-black rhomboid tank with a hedgehog coat of steel spikes, finds its way
 across three hilly maps (grassland, desert dunes with oasis ponds, and a tropical island) using five pathfinding
@@ -9,24 +9,40 @@ algorithms. Each map opens empty: add any of its 20 preset routes, or set your o
 finish, and the rover works out the quickest path over the hills while a follow drone films it,
 at golden hour under a pastel sky.
 A dashed line shows the shortest route a robot that ignores hills would take, so you can see what
-reading the terrain buys you. Python generates the maps, picks the routes, and is the reference
-implementation of every planner.
+reading the terrain buys you. You can **watch the search**: two planners side by side, cell by cell.
+And the rover can drive **seeing only a few metres around it**, re-planning with **D\* Lite** as it
+discovers the hills, the water and any roadblock you drop in its way. Press **✈ Air** and an attack drone
+with one glowing red eye flies to the finish through the sky instead, keeping **out of the watchtowers'
+sight** behind the hills.
 
-![The tour on the desert map: the camera flies in over the dunes and oases, five planners race the same trip, and the drone follows the tank along the quickest route](docs/demo.gif)
+Python generates the maps and picks the routes. The code that decides every route exists three times:
+in Python (the reference), in C++ (a core 27 to 68 times faster, with a command-line tool and a Python
+module) and in the browser's JavaScript. All three give the same routes, search the same cells and
+report the same times, to the last bit.
+
+![Watch the search on the desert: Dijkstra (left) spreads out evenly while A* (right) heads for the finish; both find the same 2:25 route, but A* searches 2.5 times fewer cells](docs/search.gif)
 
 ## Show it to someone
 
 - **The live demo** (https://r0ck574r.github.io/Robot-Navigating-Obstacles/) is the same page as `output/course_3d.html`,
   served by GitHub Pages from `docs/`. Shared links show a preview card with a picture of the
   desert oasis.
-- **▶ Tour** (top left, or add `#tour` to the address) plays a guided loop: each map flies in,
-  five planners race its showcase path, the drone and chase cameras follow the rover, and the
-  overview lays every planner's route side by side. A caption says what's happening at each step.
-  Touch anything to take over; the tour doesn't change the paths your browser remembers.
+- **▶ Tour** (top left, or add `#tour` to the address) plays a guided loop: each map flies in and
+  five planners race its showcase path; then the desert watches Dijkstra and A* search side by side,
+  the island drives with a 5 m sensor and meets a roadblock, and the grassland rides along with the
+  drone camera, then takes to the air: the attack drone flies its stealth route past the
+  watchtowers. The overview lays every route side by side. A caption says what's happening at each
+  step. Touch anything to take over; the tour doesn't change the paths your browser remembers.
 - **Links to a view**: the address keeps up with what's on screen, so you can copy it and send it.
-  [`#desert/p19/drone`](https://r0ck574r.github.io/Robot-Navigating-Obstacles/#desert/p19/drone) opens the desert's path P19 past
-  both oases with the drone camera, [`#island/p20/chase`](https://r0ck574r.github.io/Robot-Navigating-Obstacles/#island/p20/chase)
-  rides along the island's west coast, and `#tour/island` starts the tour on the island.
+  [`#desert/p19/search`](https://r0ck574r.github.io/Robot-Navigating-Obstacles/#desert/p19/search) opens the search replay,
+  [`#island/p20/sensor`](https://r0ck574r.github.io/Robot-Navigating-Obstacles/#island/p20/sensor) the sensor drive,
+  [`#grassland/p15/air`](https://r0ck574r.github.io/Robot-Navigating-Obstacles/#grassland/p15/air) the air route,
+  [`#desert/p19/drone`](https://r0ck574r.github.io/Robot-Navigating-Obstacles/#desert/p19/drone) the desert's path P19 past
+  both oases with the drone camera, and `#tour/island` starts the tour on the island.
+- **How fast it runs**: add `#bench` to the address for a frame-rate benchmark on that device, or
+  `?fps` (or press F) for a live frame counter. See [Frame rate](#frame-rate).
+
+![The tour on the desert map: the camera flies in over the dunes and oases, five planners race the same trip, then Dijkstra and A* search for it side by side](docs/demo.gif)
 
 ## Run it yourself
 
@@ -98,8 +114,13 @@ Run these from the same terminal, with the virtual environment active.
 | `python main.py route --map island --preset 3` | Race the five planners and the shortest route on preset P3 |
 | `python main.py route --map desert --start 80,10 --goal 12,85` | Same, for your own START and FINISH (the `row, col` shown in the viewer) |
 | `python main.py score-route route.json` | Score a route you drew in the viewer and copied |
+| `python main.py explore --map desert --preset 19 --sensor 5` | Drive seeing only 5 m, re-planning with D\* Lite; `--block 40,30` drops a roadblock, `--prior map` starts from the map |
+| `python main.py fly --map grassland --preset 15` | The air route: the stealth flight against the direct one, seconds in sight and flight time |
+| `python main.py route --map desert --preset 19 --engine cpp` | Any of `route`, `explore` and `fly`, computed by the [C++ core](#the-c-core) instead (same output) |
+| `python main.py parity` | The C++ core against Python on all 60 preset trips: identical results, and how much faster (about 3 minutes) |
+| `python main.py explore-bench` | Every preset at 5, 10 and 20 m: time lost to not knowing, D\* Lite's work against A\* from scratch (about a minute) |
 | `python main.py terrain-bench` | Hills, slope limit and obstacle sweep (about 25 seconds) |
-| `python -m pytest -q` | Run the 143 tests |
+| `python -m pytest -q` | Run the 209 tests (30 of them hold the C++ core against Python; skipped until it's built) |
 | `python main.py demo`, `python main.py benchmark` | The original 2D grid version |
 
 `python main.py course` writes the viewer twice: `output/course_3d.html` to open yourself, and
@@ -119,7 +140,10 @@ Run these from the same terminal, with the virtual environment active.
   which is what a robot that ignores hills would drive. The board ranks it with the planners, and
   the green line under the table spells out the difference, such as "1:21 instead of 1:59 on the
   shortest route, 39 s saved". The **Shortest route** chip hides the dashed line; **All planners**
-  shows every planner's route; **Search area** shows the cells the selected planner looked at.
+  shows every planner's route; **Search area** colours the ground the selected planner searched.
+- **▶ Watch the search** (on the stage board): see [below](#watch-the-search).
+- **The D\* Lite row**: the same trip, driven seeing only a few metres. See
+  [Driving with a limited sensor](#driving-with-a-limited-sensor-d-lite).
 - **Set start & finish**: the camera rises to a top-down map with a START and a FINISH marker you
   can set in any order and move one at a time. Three ways, all equivalent:
   - **Click the map**: the next click places whichever marker is chosen (the **Start** / **Finish**
@@ -146,6 +170,77 @@ Run these from the same terminal, with the virtual environment active.
   thicker lines, close views thin ones. Leaves and cacti between the camera and the rover dissolve,
   so a plant never hides it. The added paths, the route being driven and a drawn route are
   remembered per map in your browser.
+
+## Watch the search
+
+**▶ Watch the search** replays two planners finding the route, side by side on a split screen (one
+above the other on a phone): Dijkstra and A\* by default, any two of the five. Both expand one cell
+per tick, so the lit area is the work each has done, and the bright edge is the frontier: cells
+queued but not yet searched. When a planner reaches the finish, its route traces back from the
+finish to the start, and the caption sums up. On the desert's P19 both find the same 2:25 route,
+but A\* searches 2.5× fewer cells; Weighted A\* against A\*, or Greedy against anything, shows the
+other side of the trade: far less searching for a slower route.
+
+How it's drawn: each planner records the order it searched the cells in and when it first queued
+each one. That goes into a small texture, one texel per cell holding 16-bit step numbers, and the
+ground's own shader colours every cell by comparing them with the current step. The whole
+animation is one number per frame, so it adds no draw calls; the two halves are the same camera
+drawn twice with a scissor, sharing one shadow map. Dragging turns both.
+
+## Driving with a limited sensor: D\* Lite
+
+![D* Lite on the desert with a 5 m sensor: unseen ground is dimmed, the ring is the sensor's reach, the dashed line is the current plan and the red one a plan that just broke; a roadblock is dropped ahead, and the panel counts the re-plans and the work against A* from scratch](docs/sensor.gif)
+
+Pick the **D\* Lite** row on the stage board and the rover drives the same trip seeing only 5 m
+round itself (10 m and 20 m in its panel). It starts knowing nothing but where the finish is.
+Unseen ground is dimmed and assumed flat and open, the cheapest it could be, so its plan (dashed)
+is an optimistic guess. Each time it moves a cell it senses every cell within range, and anything
+new can only make moves dearer: a hill, soft sand, water, a rock. When that breaks the plan, the
+broken plan flashes red and [D\* Lite](https://cdn.aaai.org/AAAI/2002/AAAI02-072.pdf) (Koenig &
+Likhachev, 2002) repairs it. It searches backwards from the finish and re-examines only the cells
+whose cost to the finish the new ground changed, instead of planning again from scratch.
+**Drop a roadblock** puts a steel tank trap anywhere on the map. It exists from that moment, and
+the rover finds it when it comes into range.
+
+The panel counts the re-plans, D\* Lite's work, and what A\* would have searched had it planned
+again from scratch every time the plan broke. That's the fair comparison: costs only ever go up,
+so a plan nothing broke is still the quickest. At every re-plan, D\* Lite's repaired plan is exactly
+as quick as A\* from scratch on the same knowledge; the tests check that.
+
+`robotnav/replan.py` is the reference (`python main.py explore` drives it from the command line);
+the browser and the C++ core run line-for-line ports. Costs use `sqrt(run² + rise²)` rather than
+`hypot`, so all three round alike. In a headless-browser test, 45 drives (three maps, three sensor
+ranges, and roadblocks appearing mid-drive with each kind of prior knowledge) came out identical: the
+same cells, the same work at every step, the same plans and the same cells sensed.
+
+## The air route: a drone that stays out of sight
+
+![Air mode on the grassland, from the chase camera: the attack drone flies the direct route (amber) in a watchtower's sight, a red sight line reaching it from the left; the hatched ground shows where the towers see even a low flight](docs/air.png)
+
+Press **✈ Air** (next to the map buttons) and the trip is flown instead: an attack drone, matte black
+with four rotors and one glowing red eye, takes off at the start and lands at the finish. Four
+watchtowers stand on the highest open ground, at least 30 m apart, each with a searchlight. A tower
+sees 24 m, but only along a clear line of sight: the hills and trees between it and the drone block
+the view, so a drone flying low behind a ridge is hidden (terrain masking, as with real radar).
+
+The airspace is a stack of eight flight levels 3 m apart over the map's grid, the lowest just above
+the lowest ground. A cell of airspace is free if it clears the ground, water, trees and rocks below
+it by 2 m. The drone moves to any of the 26 neighbouring cells, but only if every cell the move
+sweeps past is free, so it can't clip a hillside or a treetop. A move takes its length at 5 m/s,
+plus 0.2 s per metre climbed. Two routes race on the board, both found with A\* and a straight-line
+estimate (which never overestimates, so both are optimal for what they weigh):
+
+- **Stealth A\*** (violet) also pays 10 s for every second inside a tower's sight, so it hugs the
+  valleys and slips behind hills when it can.
+- **Direct A\*** (amber) ignores the towers and flies the quickest line.
+
+The ground shows where the danger is, hatched: red where a tower sees even the lowest flight, amber
+where flying low keeps you hidden. While a tower sees the drone, its searchlight turns to follow it
+and a red sight line joins them; the telemetry shows the height above the ground, the climb rate,
+and **Seen** or **Hidden**.
+`robotnav/airspace.py` is the reference (`python main.py fly`), and the browser runs a line-for-line
+port: the same free cells, the same cells seen by each tower, and the same flights, checked in a
+headless browser on every map.
 
 ## The rover
 
@@ -238,6 +333,23 @@ Every texture below is drawn in code when the page starts. The page still loads 
   once at a time: render scale, then soft leaf edges, then grass and shadow-map size. Add
   `?quality=high` to the address to keep full quality.
 
+## Frame rate
+
+Add `#bench` to the address ([on the live demo](https://r0ck574r.github.io/Robot-Navigating-Obstacles/#bench))
+and the viewer measures itself on that device, at full quality, in about a minute. On each map it
+drives the tour path and records the frame rate in the drone view, the overview and the split-screen
+search (the median and the slowest 1% of frames), then times drawing single frames while waiting for
+the GPU to finish. That draw time shows the headroom: the frame rate itself can't go above the
+display's refresh rate, 60 Hz on most screens. The last row repeats the desert's drone view at the
+lowest quality, and **Copy results** copies the table. For a live counter, add `?fps` to the address
+or press **F**.
+
+What the GPU has to draw is the same everywhere: 72 to 80 draw calls and 0.25 to 0.52 million
+triangles per frame (the grassland, with the most trees and grass, is the heaviest). The search view
+draws the scene twice. The headless browser used for the tests has no GPU at all: rendering in
+software on two CPU cores, it manages 0.3 to 1.2 fps, a floor rather than a typical device. A real GPU
+is many times faster, so `#bench` is the way to get your device's numbers.
+
 ## Cost model: drive time
 
 The rover cruises at 1 m/s on the fastest surface and slows on rough ground and climbs:
@@ -276,14 +388,61 @@ for 20 such routes, the limits loosen step by step. There's no randomness, so th
 same every time, sorted from quickest to slowest, and `python main.py paths` matches the panel
 row for row.
 
-## Python and the browser give identical answers
+## The C++ core
+
+The code that decides the routes is also written in C++17 (`cpp/`): the five planners, the shortest
+route, D\* Lite with the limited sensor, and the air route with the towers' lines of sight. It has a
+command-line tool that prints the same tables as `main.py`, unit tests, and a pybind11 module that
+lets Python run it (`--engine cpp`) and check it. Python still makes the maps, since NumPy and SciPy
+generate the terrain and pick the preset trips, and hands them over directly or as a map file.
+
+```bash
+pip install pybind11
+cmake -S cpp -B cpp/build
+cmake --build cpp/build
+ctest --test-dir cpp/build
+cpp/build/robotnav route maps/desert.map --preset 19
+python main.py parity
+```
+
+`maps/` holds the three maps of the live demo (`python main.py export` writes them), so the tool runs
+without Python too. `python main.py parity` compares the two on every one of the 60 preset trips, with
+`==` and no tolerance:
+
+| Compared | Count | Identical |
+|---|---|---|
+| Drive time of every move on every map | 217,740 | all |
+| Planner runs: the route, every cell searched (in order), the frontier peak, the drive time | 360 | all |
+| Route statistics (distance, climb, rough ground) | 360 | all |
+| D\* Lite drives: every step's news, work and plan, the cells sensed, the time (each sensor range, each prior knowledge, roadblocks) | 300 | all |
+| Airspaces: the free cells and which ones each tower sees | 3 | all |
+| Flights, stealth and direct | 120 | all |
+
+And how much faster it is (both on the same machine, all 60 trips, each side timing its own searches):
+
+| | Python | C++ | Faster |
+|---|---|---|---|
+| Five planners and the shortest route (360 searches) | 13.1 s | 0.19 s | 68× |
+| D\* Lite drives, A\* baseline included (300) | 73.7 s | 2.7 s | 27× |
+| Air routes, stealth and direct (120) | 52.3 s | 0.79 s | 66× |
+
+Getting the very same bits takes more than the same algorithm. Both sides do the same operations in
+the same order (`sqrt(run² + rise²)` rather than `hypot`, times added up left to right), pick the
+same neighbour on ties, and the build turns off fused multiply-add, which compilers otherwise use on
+Apple Silicon and with `-march=native`. With it on, 51 of the 360 planner times changed in their last
+bits and D\* Lite searched a different number of cells on half the drives. [cpp/README.md](cpp/README.md)
+has the details, the layout and the commands.
+
+## Python, C++ and the browser give identical answers
 
 Driving a route can't wait for Python, so the browser runs the five planners and the shortest
 route too: a line-for-line port with the same neighbour order, costs, heuristic and heap
-tie-breaking. A headless-browser test ran 90 random start/finish pairs across the three maps:
-every route was identical cell for cell, every planner searched exactly as many cells as in
-Python, and drive times matched to within 1e-13 s. All 60 preset lines embedded in the viewer are
-identical to the browser's own A* path. Every way of setting a start and finish (clicks, typed
+tie-breaking. A headless-browser test ran 90 random start/finish pairs across the three maps, with
+all six searches on each: every route was identical cell for cell, every planner searched exactly
+as many cells as in Python, and every drive time was identical. All 60 preset lines embedded in the
+viewer are identical to the browser's own A* path, with the same time. D\* Lite and the air route are
+checked the same way (see above), and the C++ core matches Python on all of it (see
+[The C++ core](#the-c-core)). Every way of setting a start and finish (clicks, typed
 positions, flag drags with mouse and touch, swapping) was checked the same way: after each one, the
 browser's six routes matched Python's cell for cell, and `main.py route` printed the same times.
 Hand-drawn routes are scored by the same rules in both (`robotnav.terrain.evaluate_route`).
@@ -294,12 +453,17 @@ Hand-drawn routes are scored by the same rules in both (`robotnav.terrain.evalua
 |---|---|
 | `robotnav/terrain.py` | Height maps, drive-time model, the three themed maps (`make_map`) and the desert's oases, `plan_pair`, `shortest_route`, `preset_routes`, `evaluate_route` |
 | `robotnav/algorithms.py` | BFS, Dijkstra, A*, Weighted A*, Greedy — one shared priority-queue engine |
+| `robotnav/replan.py` | Driving with a limited sensor: D\* Lite, the rover's belief about the terrain, roadblocks, and the A\*-from-scratch comparison |
+| `robotnav/airspace.py` | The air route: flight levels, watchtowers and their lines of sight, the stealth and direct flights |
 | `robotnav/scene3d.py` | Exports the three maps and their preset paths into the self-contained viewer (and the live demo page, with link previews) |
-| `robotnav/viewer3d.html` | Three.js viewer: maps, sky, water, palms and trees, planners in the browser, preset paths, picking, drawing, drone camera, the spiked tank, the tour, links to a view |
+| `robotnav/viewer3d.html` | Three.js viewer: maps, sky, water, palms and trees, planners, D\* Lite and the air route in the browser, watching the search, the sensor drive, the drone and its watchtowers, preset paths, picking, drawing, drone camera, the spiked tank, the tour, links to a view, the frame-rate benchmark |
+| `cpp/` | The C++ core: planners, D\* Lite, the air route, map files, the `robotnav` tool, unit tests and the pybind11 module ([cpp/README.md](cpp/README.md)) |
+| `robotnav/cpp.py`, `parity.py`, `mapfile.py` | Run the C++ core from Python, compare it with the reference, and write the map files it reads |
+| `maps/` | The live demo's three maps as map files, for the C++ tool |
 | `docs/` | The live demo served by GitHub Pages (`index.html`, built by `python main.py course`), its preview image, and the README's pictures |
 | `robotnav/terrain_bench.py` | Sweeps hill height, slope limit and obstacle density |
 | `robotnav/grid.py`, `visualize.py`, `benchmark.py` | Original 2D grid world, plots and benchmark |
-| `tests/` | 143 checks: optimality on every map, the shortest route, all 20 presets per map, the desert's oases, grade limit, water, route rules, map rebuilds, the `row,col` command line, the page head and link previews |
+| `tests/` | 209 checks: optimality on every map, the shortest route, all 20 presets per map, the desert's oases, grade limit, water, route rules, D\* Lite (legal routes, optimal repairs, roadblocks), the air route (towers, lines of sight, hiding behind a ridge), the C++ core against Python, map rebuilds, the command line, the page head and link previews |
 
 ## Findings
 
@@ -332,9 +496,49 @@ From the terrain benchmark (64 m courses, 12 trials per level):
 - **Hills limit reachability more than obstacles**: only a third of courses with 20 m hills
   were drivable at a 60% grade limit, while even "very dense" rocks and trees left every course drivable.
 
+Driving with a limited sensor (`python main.py explore-bench`: every preset path, knowing nothing
+beforehand). Time lost is the extra drive time over A\* with the whole map known; the last column is
+how many times more cells A\* would have searched, planning again from scratch each time the plan
+broke, than D\* Lite expanded (medians):
+
+| Map | Sensor | Time lost | Worst | Re-plans | A\* again ÷ D\* Lite |
+|---|---|---|---|---|---|
+| Grassland | 5 m | +25% | +54% | 66 | 1.84× |
+| | 10 m | +8% | +40% | 57 | 0.89× |
+| | 20 m | +1% | +8% | 42 | 0.51× |
+| Desert | 5 m | +38% | +139% | 92 | 2.51× |
+| | 10 m | +10% | +105% | 73 | 1.18× |
+| | 20 m | +3% | +36% | 52 | 0.53× |
+| Island | 5 m | +23% | +119% | 47 | 1.40× |
+| | 10 m | +4% | +76% | 41 | 0.72× |
+| | 20 m | +0% | +12% | 30 | 0.45× |
+
+- **Not knowing costs time**: with a 5 m sensor the rover's routes take a median 23–38% longer
+  than with the whole map, and over twice as long in the worst case, when it explores a dead end
+  between dunes or along the coast. At 20 m it's within 3%.
+- **D\* Lite pays off when the sensor is short**: at 5 m it does 1.4–2.5× less work than planning
+  again from scratch. At 20 m, planning from scratch is about twice as cheap. Each step reveals a
+  ring of cells at the edge of the sensor's reach. D\* Lite searches backwards from the finish, so
+  it has to repair the cost of every cell between the rover and that ring, an area that grows with
+  the square of the range. A\* over unknown ground, assumed flat, heads almost straight for the
+  finish and searches little. D\* Lite is built for robots that see little and re-plan often.
+
+The air route, over each map's 20 preset trips (medians; `python main.py fly` for one trip):
+
+| Map | Direct flight in sight | Stealth flight in sight | Stealth's extra flight time |
+|---|---|---|---|
+| Grassland | 6.9 s | 0.1 s (unseen on 10 of 20 trips) | +33% (up to +225%) |
+| Desert | 9.4 s | 4.3 s | +21% (up to +89%) |
+| Island | 9.4 s | 2.9 s | +51% (up to +269%) |
+
+- **Hills hide best**: the grassland's rolling hills cut the time in sight by a median 98%. The
+  desert's low dunes hide less, so the stealth route only about halves it, and on the island, with
+  its open coast, hiding costs half as much flight time again.
+- **Some exposure can't be avoided**: when a tower sees the start or the finish itself, the stealth
+  route can only keep that stretch short.
+
 ## Ideas for next steps
 
-- Animate the search: show A* expanding cells before the path appears
-- Moving obstacles and replanning (D* Lite)
+- Wrap the C++ planners as a ROS 2 Nav2 planner plugin
+- Moving obstacles, and a rover sensor blocked by hills (the towers already use line of sight)
 - A smarter heuristic that counts the climb to the destination's elevation
-- Sensor range: the rover only sees nearby terrain and replans as it explores

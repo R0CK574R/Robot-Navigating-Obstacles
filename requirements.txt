@@ -4,3 +4,5 @@ scipy
 matplotlib
 pandas
 pytest
+# only to build the C++ core's Python module (cpp/): pybind11
+pybind11

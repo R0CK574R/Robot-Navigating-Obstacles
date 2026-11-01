@@ -3,7 +3,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: full-bleed 3D stage filmed by a follow drone. Title + map picker top-left, rally stage board top-right,
    drone feed + course map bottom-left, telemetry or the route planner along the bottom; on phones the panels stack.
@@ -18,6 +18,7 @@
   --flag-soft: rgba(242, 169, 59, 0.16);
   --flag-ink: #1b1a14;
   --accent: #39ff14;
+  --sense: #5ce1e6;
   --start: #4fae6a;
   --rec: #e2564b;
   --map-bg: #2a2f25;
@@ -25,8 +26,8 @@
   --good: #7fc28a;
   --warn: #e7c35a;
   --bad: #e2775c;
-  --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
-  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-display: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;   /* one typeface throughout */
+  --f-body: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   --f-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   color-scheme: dark;
 }
@@ -54,20 +55,63 @@ body { background: var(--bg); color: var(--ink); font-family: var(--f-body); ove
 
 .title { grid-column: 1 / 3; grid-row: 1; justify-self: start; align-self: start; padding: 12px 16px; max-width: min(31rem, 100%); }
 .eyebrow { font-family: var(--f-data); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--flag); }
-h1 { font-family: var(--f-display); font-weight: 700; font-size: 30px; line-height: 1; margin: 4px 0 8px; letter-spacing: 0.01em; text-wrap: balance; }
+h1 { font-family: var(--f-display); font-weight: 800; font-size: 25px; line-height: 1.05; margin: 4px 0 9px; letter-spacing: -0.02em; text-wrap: balance; }
 .maps { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .maps button { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; }
 .maps button[aria-pressed="true"] { border-color: var(--flag); color: var(--flag); background: var(--flag-soft); }
 .maps i { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px var(--edge); }
 .maps .tour-btn { border-color: var(--accent); color: var(--accent); background: transparent; }
+.maps .air-btn { border-color: var(--rec); color: #ff8a7a; background: transparent; }
+.maps .air-btn[aria-pressed="true"] { border-color: var(--rec); background: var(--rec); color: var(--flag-ink); }
 .maps .tour-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--flag-ink); }   /* not a map: never the map highlight */
-/* the tour's caption: the free middle of the screen, above the controls */
-.tour-cap { grid-column: 2; grid-row: 2; align-self: end; justify-self: center; width: min(34rem, 100%); box-sizing: border-box;
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 4px 12px; padding: 10px 12px 11px 16px; }
+/* the free middle of the screen, above the controls: the sensor drive's panel and the tour's caption */
+.mid { grid-column: 2; grid-row: 2; align-self: end; justify-self: center; width: min(34rem, 100%); min-width: 0;
+  display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.tour-cap { box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 4px 12px; padding: 10px 12px 11px 16px; }
 .tour-step { font-family: var(--f-data); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
-.tour-text { grid-column: 1; margin: 0; font-size: 14.5px; line-height: 1.45; }
+.tour-text { grid-column: 1; margin: 0; font-size: 13px; line-height: 1.5; }
 .tour-text b { color: var(--flag); font-weight: 600; }
 #tour-stop { grid-column: 2; grid-row: 1 / 3; padding: 6px 10px; }
+/* driving with a limited sensor (D* Lite): reach, re-plans, work, roadblocks */
+.sense { box-sizing: border-box; display: grid; gap: 8px; padding: 10px 14px 12px 16px; }
+.sense-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.sense-title { display: inline-flex; align-items: center; gap: 8px; font-family: var(--f-display); font-weight: 700; font-size: 12.5px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--sense); }
+.sense-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sense); box-shadow: 0 0 0 3px rgba(92, 225, 230, 0.22); }
+.sense-range { display: inline-flex; align-items: center; gap: 4px; font-family: var(--f-data); font-size: 11px; color: var(--muted); }
+.sense-range .chip { padding: 5px 8px; font-size: 12px; }
+.sense-range .chip[aria-pressed="true"] { border-color: var(--sense); color: var(--sense); }
+.sense-stats { display: flex; flex-wrap: wrap; gap: 6px 18px; font-variant-numeric: tabular-nums; }
+.sense-msg { margin: 0; min-height: 3em; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.sense-msg b { color: var(--ink); font-weight: 600; }
+.sense-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+#sn-block[aria-pressed="true"] { border-color: var(--bad); color: var(--bad); background: rgba(226, 119, 92, 0.12); }
+/* the frame-rate benchmark (#bench) */
+.bench { box-sizing: border-box; display: grid; gap: 6px; padding: 10px 14px 12px 16px; max-height: min(30rem, 62vh); overflow: auto; }
+.bench-title { font-family: var(--f-display); font-weight: 700; font-size: 12.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--flag); }
+.bench-prog { font-family: var(--f-data); font-size: 11.5px; color: var(--muted); }
+.bench-gpu, .bench-note { margin: 0; font-family: var(--f-data); font-size: 11px; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+.bench-table td { padding: 5px 8px; font-size: 12px; }
+.bench-table th:first-child, .bench-table td:first-child { padding-left: 0; }
+.bench-table th:last-child, .bench-table td:last-child { padding-right: 0; }
+/* watch the search: two planners side by side; the bar that runs it replaces the controls */
+.watch-btn { border-color: var(--flag); color: var(--flag); }
+.replaybar { grid-column: 1 / -1; grid-row: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; padding: 12px 16px; }
+.rp-text { display: grid; gap: 3px; flex: 1 1 26rem; min-width: 0; }
+.rp-title { font-family: var(--f-display); font-weight: 700; font-size: 12.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--flag); }
+.rp-cap { margin: 0; font-size: 12.5px; line-height: 1.5; min-height: 3em; }
+.rp-cap b { color: var(--flag); font-weight: 600; }
+.rp-pick { display: flex; align-items: center; gap: 8px; font-family: var(--f-data); font-size: 12px; color: var(--muted); }
+.rp-pick select { font: 600 12px/1 var(--f-body); color: var(--ink); background: var(--map-bg); border: 1px solid var(--edge); border-radius: 4px; padding: 7px 8px; }
+.rp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rp-labels { position: fixed; inset: 0; pointer-events: none; }
+.rp-label { position: absolute; box-sizing: border-box; display: grid; gap: 4px; padding: 9px 12px 10px; max-width: calc(50vw - 32px);
+  background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.rp-name { display: inline-flex; align-items: center; gap: 9px; font-family: var(--f-display); font-weight: 800; font-size: 17px; line-height: 1; }
+.rp-name .swatch { width: 18px; height: 5px; }
+.rp-count { font-family: var(--f-data); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rp-count b { color: var(--ink); font-weight: 600; }
+.rp-split { position: absolute; background: rgba(236, 230, 214, 0.6); }
 .specs { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--f-data); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .specs b { color: var(--ink); font-weight: 600; }
 
@@ -76,7 +120,7 @@ h1 { font-family: var(--f-display); font-weight: 700; font-size: 30px; line-heig
 .times summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 16px 8px; }
 .times:not([open]) summary { padding-bottom: 12px; }
 .times summary::-webkit-details-marker { display: none; }
-.sum-title { display: inline-flex; align-items: center; gap: 10px; font-family: var(--f-display); font-weight: 600; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.sum-title { display: inline-flex; align-items: center; gap: 10px; font-family: var(--f-display); font-weight: 700; font-size: 12.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .sum-title::before { content: ""; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform 0.2s; }
 .times[open] .sum-title::before { transform: translateY(-2px) rotate(45deg); }
 .sum-pick { font-family: var(--f-data); font-size: 12px; color: var(--ink); white-space: nowrap; }
@@ -90,13 +134,13 @@ tbody tr:hover td { background: var(--hover); }
 tbody tr[aria-selected="true"] td { background: var(--flag-soft); }
 tbody tr:focus-visible { outline: 2px solid var(--flag); outline-offset: -2px; }
 tbody tr.mine .alg { color: var(--accent); }
-.alg { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-family: var(--f-body); font-weight: 600; font-size: 13.5px; }
+.alg { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-family: var(--f-body); font-weight: 600; font-size: 12.5px; }
 .swatch { width: 14px; height: 4px; border-radius: 2px; flex: none; }
 .swatch.dashed { background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px) !important; }
-.board-empty { margin: 2px 16px 12px; font-size: 13.5px; line-height: 1.5; color: var(--muted); max-width: 44ch; }
+.board-empty { margin: 2px 16px 12px; font-size: 12.5px; line-height: 1.55; color: var(--muted); max-width: 46ch; }
 .board-empty b { color: var(--ink); font-weight: 600; }
 .board-save { margin: 10px 16px 0; padding: 8px 10px; border-left: 3px solid var(--accent); background: rgba(57, 255, 20, 0.07);
-  font-size: 13px; line-height: 1.45; max-width: 46ch; }
+  font-size: 12px; line-height: 1.5; max-width: 50ch; }
 .board-save b { color: var(--accent); font-weight: 600; }
 .pos { font-family: var(--f-display); font-weight: 700; color: var(--muted); width: 1.2em; display: inline-block; }
 tr[aria-selected="true"] .pos { color: var(--flag); }
@@ -127,7 +171,7 @@ tr[aria-selected="true"] .pos { color: var(--flag); }
 .tele { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; padding: 10px 16px; }
 .controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 button, .chip {
-  font: 600 13px/1 var(--f-body); color: var(--ink); background: transparent;
+  font: 600 12px/1 var(--f-body); color: var(--ink); background: transparent;
   border: 1px solid var(--edge); border-radius: 4px; padding: 8px 11px; cursor: pointer;
 }
 button:hover, .chip:hover { border-color: var(--muted); }
@@ -145,7 +189,7 @@ button.go { background: var(--accent); color: var(--flag-ink); border-color: var
 .gauges { display: flex; flex-wrap: wrap; gap: 6px 18px; font-variant-numeric: tabular-nums; flex: 1 1 22rem; min-width: 0; }   /* too little room: own line */
 .g { display: grid; gap: 2px; min-width: 4.4rem; }
 .g span { font-family: var(--f-data); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-.g output { font-family: var(--f-display); font-weight: 600; font-size: 20px; line-height: 1; white-space: nowrap; }
+.g output { font-family: var(--f-display); font-weight: 700; font-size: 16.5px; line-height: 1; white-space: nowrap; letter-spacing: -0.02em; }
 .g output small { font-family: var(--f-data); font-size: 11px; color: var(--muted); margin-left: 2px; }
 .surf-good { color: var(--good); } .surf-warn { color: var(--warn); } .surf-bad { color: var(--bad); }
 .progress { flex-basis: 100%; height: 3px; background: var(--edge); border-radius: 2px; overflow: hidden; }
@@ -156,8 +200,8 @@ input[type=range] { accent-color: var(--flag); width: 84px; }
 
 .drawbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; padding: 12px 16px; }
 .draw-text { display: grid; gap: 3px; flex: 1 1 24rem; min-width: 0; }
-.draw-title { font-family: var(--f-display); font-weight: 600; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
-.draw-hint { margin: 0; font-size: 13.5px; line-height: 1.4; }
+.draw-title { font-family: var(--f-display); font-weight: 700; font-size: 12.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.draw-hint { margin: 0; font-size: 12.5px; line-height: 1.45; }
 .draw-msg { margin: 0; min-height: 2.9em; font-family: var(--f-data); font-size: 12px; line-height: 1.45; color: var(--muted); }   /* 2 lines kept free: the bar doesn't jump */
 .draw-pointer { margin: 0; min-height: 1.45em; font-family: var(--f-data); font-size: 11.5px; line-height: 1.45; color: var(--muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
@@ -199,7 +243,7 @@ input[type=range] { accent-color: var(--flag); width: 84px; }
 .paths-list label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .paths-list input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; flex: none; }
 .paths-list i { width: 11px; height: 11px; border-radius: 50%; flex: none; }
-.paths-list b { font-family: var(--f-display); font-weight: 700; font-size: 15px; min-width: 1.6em; }
+.paths-list b { font-family: var(--f-display); font-weight: 800; font-size: 13px; min-width: 2.2em; }
 .paths-list .chip { padding: 6px 10px; }
 .paths-time { font-family: var(--f-data); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .paths-note { flex: none; margin: 8px 16px 0; font-size: 12px; line-height: 1.45; color: var(--muted); max-width: 46ch; }
@@ -210,7 +254,7 @@ input[type=range] { accent-color: var(--flag); width: 84px; }
   .hud { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 8px; }
   .title { grid-column: 1; padding: 10px 12px; }
   .eyebrow { display: none; }
-  h1 { font-size: 22px; margin: 0 0 6px; }
+  h1 { font-size: 19px; margin: 0 0 6px; }
   .maps { margin-bottom: 6px; }
   .maps button { padding: 6px 9px; font-size: 12.5px; }
   .drone { display: none; }
@@ -220,7 +264,7 @@ input[type=range] { accent-color: var(--flag); width: 84px; }
   .views { display: flex; }
   .views button { flex: 1; padding: 8px 4px; font-size: 12.5px; }
   .gauges { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; flex: none; }
-  .g output { font-size: 16px; }
+  .g output { font-size: 14px; }
   .progress { flex-basis: auto; }
   .draw-text { flex: none; }
   .draw-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 10px; }
@@ -229,14 +273,23 @@ input[type=range] { accent-color: var(--flag); width: 84px; }
   .draw-pointer { display: none; }                 /* no hovering on touch screens */
   .paths { width: auto; max-height: 72%; }
   .paths-note { display: none; }
-  .tour-cap { grid-column: 1; grid-row: 2; align-self: start; width: auto; padding: 8px 10px 9px 12px; }
+  .mid { grid-column: 1; grid-row: 2; align-self: start; width: auto; }
+  .tour-cap { padding: 8px 10px 9px 12px; }
   .tour-text { font-size: 13px; }
+  .sense { padding: 8px 10px 10px 12px; gap: 6px; }
+  .sense-msg { min-height: 0; font-size: 12.5px; }
+  .sense-stats .g output { font-size: 13.5px; }
+  .replaybar { grid-row: 4; flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 12px; }
+  .rp-cap { min-height: 4.35em; font-size: 13px; }
+  .rp-label { max-width: calc(100vw - 32px); padding: 7px 10px 8px; }
+  .rp-name { font-size: 17px; }
 }
 @media (max-width: 380px) { .paths-time { display: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
 <div id="stage" aria-label="3D view of the selected map"></div>
+<div class="rp-labels" id="rp-labels" hidden><i class="rp-split" id="rp-split"></i><div class="rp-label" id="rp-l0"></div><div class="rp-label" id="rp-l1"></div></div>
 
 <div class="hud">
   <header class="board title" id="title-board">
@@ -255,6 +308,7 @@ input[type=range] { accent-color: var(--flag); width: 84px; }
     </table>
     <p class="board-save" id="board-save" role="status" hidden></p>
     <div class="toggles" id="board-toggles">
+      <button class="chip watch-btn" id="t-watch" title="Replay two planners searching, side by side, one cell per tick each">▶ Watch the search</button>
       <button class="chip" id="t-short" aria-pressed="true">Shortest route</button>
       <button class="chip" id="t-routes" aria-pressed="false">All planners</button>
       <button class="chip" id="t-search" aria-pressed="false">Search area</button>
@@ -262,23 +316,54 @@ input[type=range] { accent-color: var(--flag); width: 84px; }
     </div>
     <p class="board-msg" id="board-msg" role="status" aria-live="polite" hidden></p>
     <textarea id="route-json" readonly hidden aria-label="Your route as JSON"></textarea>
-    <p class="note">Time is how long the rover takes: it cruises at 1 m/s and slows on rough ground and climbs. The shortest route (dashed) ignores the hills: least distance, not least time. Pick a row to watch that route.</p>
+    <p class="note">Time is how long the rover takes: it cruises at 1 m/s and slows on rough ground and climbs. The shortest route (dashed) ignores the hills: least distance, not least time. D* Lite drives seeing only a few metres around it and re-plans as it goes. Pick a row to watch that route.</p>
   </details>
 
   <section class="board drone" id="drone" aria-label="Drone camera and map">
     <div class="drone-head">
       <span class="drone-label"><span class="rec" aria-hidden="true"></span><span id="d-label">Drone cam</span></span>
-      <span>Alt <b id="d-alt">0</b> m</span><span>Hdg <b id="d-hdg">000</b>°</span>
+      <span>Alt <b id="d-alt">0</b> m</span><span>Hdg <b id="d-hdg">000</b>°</span><span id="d-fps" hidden><b id="d-fps-n">0</b> fps</span>
     </div>
     <canvas id="minimap" role="img" aria-label="Map with the rover, the drone and the planned routes"></canvas>
-    <div class="map-key"><span><i class="k-rover"></i>Rover</span><span><i class="k-drone"></i>Drone</span><span><i class="k-start"></i>Start</span><span><i class="k-finish"></i>Finish</span></div>
+    <div class="map-key"><span><i class="k-rover"></i><span id="key-rover">Rover</span></span><span><i class="k-drone"></i><span id="key-cam">Drone</span></span><span><i class="k-start"></i>Start</span><span><i class="k-finish"></i>Finish</span></div>
   </section>
 
-  <section class="board tour-cap" id="tour-cap" aria-label="Tour" aria-live="polite" hidden>
-    <span class="tour-step" id="tour-step"></span>
-    <button class="chip" id="tour-stop">Stop</button>
-    <p class="tour-text" id="tour-text"></p>
-  </section>
+  <div class="mid" id="mid">
+    <section class="board sense" id="sense" aria-label="Driving with a limited sensor" hidden>
+      <div class="sense-head">
+        <span class="sense-title"><span class="sense-dot" aria-hidden="true"></span>D* Lite · limited sensor</span>
+        <span class="sense-range" role="group" aria-label="Sensor range">Sees
+          <button class="chip" data-range="5" aria-pressed="true">5 m</button><button class="chip" data-range="10" aria-pressed="false">10 m</button><button class="chip" data-range="20" aria-pressed="false">20 m</button>
+        </span>
+      </div>
+      <div class="sense-stats">
+        <div class="g"><span>Re-plans</span><output id="sn-replans">0</output></div>
+        <div class="g" title="Cells D* Lite expanded so far, its first plan included"><span>D* Lite work</span><output id="sn-dwork">0</output></div>
+        <div class="g" title="Cells A* would have searched, planning again from scratch every time the plan broke"><span>A* from scratch</span><output id="sn-awork">0</output></div>
+        <div class="g"><span>Map seen</span><output><span id="sn-seen">0</span><small>%</small></output></div>
+      </div>
+      <p class="sense-msg" id="sn-msg" role="status" aria-live="polite"></p>
+      <div class="sense-actions">
+        <button class="chip" id="sn-block" aria-pressed="false">Drop a roadblock</button>
+        <button class="chip" id="sn-clear" hidden>Clear roadblocks</button>
+      </div>
+    </section>
+    <section class="board bench" id="bench" aria-label="Frame-rate benchmark" hidden>
+      <div class="sense-head"><span class="bench-title">Frame-rate benchmark</span><span class="bench-prog" id="bench-prog" role="status"></span></div>
+      <p class="bench-gpu" id="bench-gpu"></p>
+      <table class="bench-table">
+        <thead><tr><th>Map</th><th>View</th><th>fps</th><th title="The slowest 1% of frames">1% low</th><th title="Time to draw one frame, waiting for the GPU to finish">Draw ms</th></tr></thead>
+        <tbody id="bench-rows"></tbody>
+      </table>
+      <p class="bench-note" id="bench-note"></p>
+      <div class="sense-actions"><button class="chip" id="bench-copy" disabled>Copy results</button><button class="chip" id="bench-close">Close</button></div>
+    </section>
+    <section class="board tour-cap" id="tour-cap" aria-label="Tour" aria-live="polite" hidden>
+      <span class="tour-step" id="tour-step"></span>
+      <button class="chip" id="tour-stop">Stop</button>
+      <p class="tour-text" id="tour-text"></p>
+    </section>
+  </div>
 
   <section class="board paths" id="paths" aria-label="More paths" hidden>
     <div class="paths-head">
@@ -317,6 +402,22 @@ input[type=range] { accent-color: var(--flag); width: 84px; }
       <div class="g"><span>Surface</span><output id="g-surf">—</output></div>
     </div>
     <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+  </section>
+
+  <section class="board replaybar" id="replaybar" aria-label="Watch the search" hidden>
+    <div class="rp-text">
+      <div class="rp-title">Watch the search</div>
+      <p class="rp-cap" id="rp-cap" role="status" aria-live="polite"></p>
+    </div>
+    <div class="rp-pick">
+      <select id="rp-left" aria-label="Planner on the left"></select><span>vs</span><select id="rp-right" aria-label="Planner on the right"></select>
+    </div>
+    <div class="rp-actions">
+      <button class="primary" id="rp-play">Pause</button>
+      <button id="rp-restart">Restart</button>
+      <label class="speed" for="rp-speed">Speed <input type="range" id="rp-speed" min="1" max="7" step="1" value="3"><output id="rp-speed-val" for="rp-speed">1×</output></label>
+      <button id="rp-close">Close</button>
+    </div>
   </section>
 
   <section class="board drawbar" id="planbar" aria-label="Set start and finish" hidden>
@@ -1199,18 +1300,82 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   n = normalize(n - vec3(s.x, 0.0, s.y));
   return normalize((viewMatrix * vec4(n, 0.0)).xyz);
 }
+// Overlays, one texel per cell, driven by a step number (so the animation is a single uniform per frame):
+//   a search: cells searched by now take the planner's colour, freshly searched ones glow, and the frontier (queued,
+//   not yet searched) shows bright; a sensor drive: ground the rover hasn't sensed yet is dimmed, its reach is a ring.
+uniform sampler2D uSearch, uKnown;
+uniform vec4 uSearchP;                               // x: cells searched so far, y: on, z: how long a fresh cell glows (cells), w: dim the rest
+uniform vec3 uSearchCol, uSenseCol;
+uniform vec4 uFogP;                                  // x: the rover's step on its drive, y: on, z: sensor reach (m), w: clock (s)
+uniform vec2 uRoverXZ, uGrid;                        // where the rover is; columns, rows
+uniform sampler2D uThreat;                           // air route: per cell, 2 if a tower sees even the lowest flight level,
+uniform float uThreatOn;                             // 1 if it sees only higher ones (so flying low hides), 0 if neither
+vec3 gEmit = vec3(0.0);                              // light the overlays add, so they read in shadow too
+float dec16(vec2 v) { return floor(v.x * 255.0 + 0.5) * 256.0 + floor(v.y * 255.0 + 0.5); }
+float threatAt(vec2 cell) { return floor(texture2D(uThreat, (clamp(cell, vec2(0.0), uGrid - 1.0) + 0.5) / uGrid).r * 255.0 + 0.5); }
+float knownAt(vec2 cell) {                           // 1 once the rover has sensed this cell
+  float seen = dec16(texture2D(uKnown, (clamp(cell, vec2(0.0), uGrid - 1.0) + 0.5) / uGrid).rg);
+  return (seen > 0.5 && seen - 1.0 <= uFogP.x) ? 1.0 : 0.0;
+}
+void groundOverlay(inout vec3 col) {
+  vec2 g = vWPos.xz + (uGrid - 1.0) * 0.5;           // grid coordinates: cell (row r, col c) is centred on (c, r)
+  if (uSearchP.y > 0.5) {
+    vec2 cell = floor(g + 0.5);
+    vec4 t = texture2D(uSearch, (cell + 0.5) / uGrid);
+    float pop = dec16(t.rg), opn = dec16(t.ba) - 1.0, s = uSearchP.x;
+    vec2 f = abs(fract(g + 0.5) - 0.5);
+    float e = max(f.x, f.y), aa = fwidth(e);
+    float edge = smoothstep(0.5 - 2.5 * aa, 0.5 - 0.5 * aa, e) * (1.0 - smoothstep(0.06, 0.22, aa));   // cell borders, gone from afar
+    if (pop > 0.5 && pop <= s) {
+      float fresh = exp(-(s - pop) / uSearchP.z);
+      col = mix(col, uSearchCol, 0.55 + 0.25 * fresh) * (1.0 - 0.45 * edge);
+      gEmit += uSearchCol * (0.12 + 1.1 * fresh);
+    } else if (opn >= 0.0 && opn <= s) {
+      col = mix(col, vec3(1.0), 0.65);
+      gEmit += vec3(0.85, 0.9, 0.95) * (0.6 + 0.5 * edge);
+    } else col = mix(col, vec3(dot(col, vec3(0.3, 0.59, 0.11))) * 0.8, uSearchP.w);
+  }
+  if (uThreatOn > 0.5) {                             // where the watchtowers see: red even low down, amber only up high
+    vec2 i0 = floor(g), w = g - i0;
+    float a = threatAt(i0), b = threatAt(i0 + vec2(1.0, 0.0)), c = threatAt(i0 + vec2(0.0, 1.0)), d = threatAt(i0 + vec2(1.0));
+    float hi = mix(mix(step(1.5, a), step(1.5, b), w.x), mix(step(1.5, c), step(1.5, d), w.x), w.y);
+    float any = mix(mix(step(0.5, a), step(0.5, b), w.x), mix(step(0.5, c), step(0.5, d), w.x), w.y);
+    hi = smoothstep(0.25, 0.75, hi); any = smoothstep(0.25, 0.75, any);
+    float st = fract((vWPos.x + vWPos.z) * 0.6), sa = fwidth((vWPos.x + vWPos.z) * 0.6);   // hatched, so it reads as a map overlay
+    float hatch = smoothstep(0.5 - sa, 0.5 + sa, st) * (1.0 - smoothstep(0.15, 0.4, sa));
+    col = mix(col, vec3(0.62, 0.05, 0.04), hi * (0.36 + 0.14 * hatch));
+    col = mix(col, vec3(0.75, 0.38, 0.05), (any - hi) * (0.18 + 0.08 * hatch));
+    gEmit += vec3(0.35, 0.02, 0.01) * hi * 0.25;
+  }
+  if (uFogP.y > 0.5) {
+    vec2 i0 = floor(g), w = g - i0;                  // between the four nearest cells, so the edge of the known ground is soft
+    float k = mix(mix(knownAt(i0), knownAt(i0 + vec2(1.0, 0.0)), w.x), mix(knownAt(i0 + vec2(0.0, 1.0)), knownAt(i0 + vec2(1.0)), w.x), w.y);
+    float fog = 1.0 - smoothstep(0.15, 0.85, k);
+    col = mix(col, vec3(dot(col, vec3(0.3, 0.59, 0.11))) * vec3(0.5, 0.56, 0.74), fog * 0.78);
+    float d = distance(vWPos.xz, uRoverXZ), da = fwidth(d);
+    float ring = 1.0 - smoothstep(0.06 + da, 0.16 + 2.0 * da, abs(d - uFogP.z));
+    float inside = 1.0 - smoothstep(uFogP.z - 0.3, uFogP.z, d);
+    float sweep = pow(fract(atan(vWPos.z - uRoverXZ.y, vWPos.x - uRoverXZ.x) / 6.2831853 + uFogP.w * 0.45), 8.0);
+    gEmit += uSenseCol * (ring * 0.95 + inside * sweep * 0.3);
+  }
+}
 `;
+  const OVER = { uSearch: { value: null }, uSearchP: { value: new THREE.Vector4(0, 0, 40, 0) }, uSearchCol: { value: new THREE.Color() },
+                 uKnown: { value: null }, uFogP: { value: new THREE.Vector4(0, 0, 5, 0) }, uRoverXZ: { value: new THREE.Vector2() },
+                 uGrid: { value: new THREE.Vector2(1, 1) }, uSenseCol: { value: lin("#5ce1e6") },
+                 uThreat: { value: null }, uThreatOn: { value: 0 } };
   function groundMaterial() {
     const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
     m.onBeforeCompile = sh => {
-      skyUniforms(sh); sh.uniforms.uNoise = { value: noiseTex() };
+      skyUniforms(sh); sh.uniforms.uNoise = { value: noiseTex() }; Object.assign(sh.uniforms, OVER);
       sh.vertexShader = sh.vertexShader
         .replace("#include <common>", "#include <common>\nattribute vec4 aMat;\nattribute vec2 aWind;\nvarying vec4 vMat;\nvarying vec2 vWind;\nvarying vec3 vWPos;")
         .replace("#include <begin_vertex>", "#include <begin_vertex>\n  vMat = aMat; vWind = aWind; vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;");
       sh.fragmentShader = sh.fragmentShader
         .replace("#include <common>", "#include <common>\n" + GROUND_GLSL)
-        .replace("#include <color_fragment>", "#include <color_fragment>\n  diffuseColor.rgb *= groundTint(vWPos.xz);")
-        .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n  normal = groundNormal(normal, vWPos.xz);");
+        .replace("#include <color_fragment>", "#include <color_fragment>\n  diffuseColor.rgb *= groundTint(vWPos.xz);\n  { vec3 oc = diffuseColor.rgb; groundOverlay(oc); diffuseColor.rgb = oc; }")
+        .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n  normal = groundNormal(normal, vWPos.xz);")
+        .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n  totalEmissiveRadiance += gEmit;");
     };
     m.customProgramCacheKey = () => "ground";
     m.extensions = { derivatives: true };
@@ -1433,11 +1598,12 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     if (dr && dc && (OBS[a + dr * C] || OBS[a + dc])) return -1;
     const run = (dr && dc ? Math.SQRT2 : 1) * COST.cell, rise = H[b] - H[a], grade = rise / run;
     if (Math.abs(grade) > MAP.max_grade) return -1;
-    return Math.hypot(run, rise) * SCOST[SURF[b]] * (1 + COST.uphill * Math.max(grade, 0));
+    return Math.sqrt(run * run + rise * rise) * SCOST[SURF[b]] * (1 + COST.uphill * Math.max(grade, 0));   // sqrt, not hypot: rounds like Python
   }
   function stepDist(a, b) {
     const ar = (a / C) | 0, br = (b / C) | 0, diag = br !== ar && (b - br * C) !== (a - ar * C);
-    return Math.hypot((diag ? Math.SQRT2 : 1) * COST.cell, H[b] - H[a]);
+    const run = (diag ? Math.SQRT2 : 1) * COST.cell, rise = H[b] - H[a];
+    return Math.sqrt(run * run + rise * rise);
   }
   const isOasisPalm = i => !!THEME.oasis && WDIST[i] <= 4;                 // trees by the desert's ponds are palms
   const treeName = i => (isOasisPalm(i) ? THEME.oasis.treeName : THEME.treeName);
@@ -1490,9 +1656,9 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   }
   function bestFirst(si, gi, prio, step = stepCost) {
     const N = R * C, g = new Float64Array(N).fill(Infinity), parent = new Int32Array(N).fill(-1), closed = new Uint8Array(N);
-    const heap = new Heap(), explored = [];
+    const heap = new Heap(), explored = [], opened = new Int32Array(N).fill(-1);   // opened: cells searched when first queued
     let tie = 0, peak = 1;
-    g[si] = 0; heap.push(prio(0, heur(si, gi)), tie++, si);
+    g[si] = 0; opened[si] = 0; heap.push(prio(0, heur(si, gi)), tie++, si);
     while (heap.size) {
       const cur = heap.pop();
       if (closed[cur]) continue;                   // stale duplicate entry
@@ -1505,16 +1671,17 @@ vec3 groundNormal(vec3 nv, vec2 p) {
         const n = nr * C + nc, st = step(cur, n);
         if (st < 0) continue;
         const ng = g[cur] + st;
-        if (ng < g[n]) { g[n] = ng; parent[n] = cur; heap.push(prio(ng, heur(n, gi)), tie++, n); }
+        if (ng < g[n]) { if (opened[n] < 0) opened[n] = explored.length; g[n] = ng; parent[n] = cur; heap.push(prio(ng, heur(n, gi)), tie++, n); }
       }
       if (heap.size > peak) peak = heap.size;
     }
-    return { found: closed[gi] === 1, parent, explored, peak };
+    return { found: closed[gi] === 1, parent, explored, peak, opened };
   }
   function bfs(si, gi) {
     const N = R * C, parent = new Int32Array(N).fill(-1), seen = new Uint8Array(N), q = new Int32Array(N), explored = [];
+    const opened = new Int32Array(N).fill(-1);
     let qh = 0, qt = 0, peak = 1;
-    q[qt++] = si; seen[si] = 1;
+    q[qt++] = si; seen[si] = 1; opened[si] = 0;
     while (qh < qt) {
       const cur = q[qh++]; explored.push(cur);
       if (cur === gi) break;
@@ -1524,11 +1691,319 @@ vec3 groundNormal(vec3 nv, vec2 p) {
         if (nr < 0 || nc < 0 || nr >= R || nc >= C) continue;
         const n = nr * C + nc;
         if (stepCost(cur, n) < 0 || seen[n]) continue;
-        seen[n] = 1; parent[n] = cur; q[qt++] = n;
+        seen[n] = 1; parent[n] = cur; q[qt++] = n; opened[n] = explored.length;
       }
       if (qt - qh > peak) peak = qt - qh;
     }
-    return { found: seen[gi] === 1, parent, explored, peak };
+    return { found: seen[gi] === 1, parent, explored, peak, opened };
+  }
+  // ---------------------------------------------------------------- driving with a limited sensor: a 1:1 port of robotnav.replan
+  // The rover sees only `range` metres round itself; unsensed ground is assumed flat and open. D* Lite (Koenig &
+  // Likhachev) repairs the plan as it learns. Same neighbour order, costs (sqrt, not hypot, so both languages round
+  // alike), keys and first-in-first-out ties as Python, so both drive the same cells and do the same work.
+  const DSTAR = { key: "dstar", name: "D* Lite", color: "#5ce1e6" };
+  function makeBelief(prior) {                     // "none", "elevation" (no obstacles) or "map" (all but roadblocks)
+    const N = R * C, known = new Uint8Array(N), blk = new Uint8Array(N);
+    if (prior !== "none") known.fill(1);
+    if (prior === "map") for (let i = 0; i < N; i++) blk[i] = OBS[i] ? 1 : 0;
+    return { known, blk };
+  }
+  function bCost(B, u, v, dr, dc) {                // believed seconds for u → v = u + (dr, dc)
+    const blk = B.blk;
+    if (blk[u] || blk[v]) return Infinity;
+    let run;
+    if (dr && dc) {
+      if (blk[u + dr * C] || blk[u + dc]) return Infinity;      // no squeezing between two obstacles
+      run = Math.SQRT2 * COST.cell;
+    } else run = COST.cell;
+    if (!(B.known[u] && B.known[v])) return run;                // unknown ground: flat, open, fastest surface
+    const rise = H[v] - H[u], grade = rise / run;
+    if (Math.abs(grade) > MAP.max_grade) return Infinity;
+    return Math.sqrt(run * run + rise * rise) * SCOST[SURF[v]] * (1 + COST.uphill * Math.max(grade, 0));
+  }
+  class DStarLite {                                // the optimised version; a heap with lazy deletion
+    constructor(B, start, goal) {
+      const N = R * C;
+      this.B = B; this.start = start; this.goal = goal; this.last = start;
+      this.g = new Float64Array(N).fill(Infinity); this.rhs = new Float64Array(N).fill(Infinity);
+      this.km = 0; this.inq = new Int32Array(N); this.stamp = 0; this.expanded = 0; this.arg = -1;
+      this.k1 = []; this.k2 = []; this.ks = []; this.kv = [];
+      this.rhs[goal] = 0;
+      this.push(goal, heur(start, goal), 0);
+    }
+    lessAt(i, j) {
+      const a = this.k1, b = this.k2;
+      return a[i] < a[j] || (a[i] === a[j] && (b[i] < b[j] || (b[i] === b[j] && this.ks[i] < this.ks[j])));
+    }
+    swap(i, j) {
+      const a = this.k1, b = this.k2, s = this.ks, v = this.kv;
+      [a[i], a[j]] = [a[j], a[i]]; [b[i], b[j]] = [b[j], b[i]]; [s[i], s[j]] = [s[j], s[i]]; [v[i], v[j]] = [v[j], v[i]];
+    }
+    push(u, k1, k2) {
+      this.inq[u] = ++this.stamp;
+      this.k1.push(k1); this.k2.push(k2); this.ks.push(this.stamp); this.kv.push(u);
+      let i = this.kv.length - 1;
+      while (i > 0) { const p = (i - 1) >> 1; if (!this.lessAt(i, p)) break; this.swap(i, p); i = p; }
+    }
+    popTop() {
+      const last = this.kv.length - 1;
+      this.swap(0, last); this.k1.pop(); this.k2.pop(); this.ks.pop(); this.kv.pop();
+      let i = 0;
+      for (;;) {
+        const l = 2 * i + 1, r = l + 1; let m = i;
+        if (l < this.kv.length && this.lessAt(l, m)) m = l;
+        if (r < this.kv.length && this.lessAt(r, m)) m = r;
+        if (m === i) break;
+        this.swap(i, m); i = m;
+      }
+    }
+    top() {                                        // true if there is a live entry (now at index 0)
+      while (this.kv.length && this.inq[this.kv[0]] !== this.ks[0]) this.popTop();   // stale entry
+      return this.kv.length > 0;
+    }
+    key(u) { const m = Math.min(this.g[u], this.rhs[u]); return [m + heur(this.start, u) + this.km, m]; }
+    updateVertex(u) {
+      if (this.g[u] !== this.rhs[u]) { const k = this.key(u); this.push(u, k[0], k[1]); }
+      else if (this.inq[u]) this.inq[u] = 0;
+    }
+    bestSucc(u) {                                  // min over neighbours s of c(u, s) + g(s); the neighbour in this.arg
+      const r = (u / C) | 0, c = u - r * C;
+      let best = Infinity, arg = -1;
+      for (let k = 0; k < 8; k++) {
+        const dr = NB_R[k], dc = NB_C[k], nr = r + dr, nc = c + dc;
+        if (nr < 0 || nc < 0 || nr >= R || nc >= C) continue;
+        const s = u + dr * C + dc, v = bCost(this.B, u, s, dr, dc) + this.g[s];
+        if (v < best) { best = v; arg = s; }
+      }
+      this.arg = arg;
+      return best;
+    }
+    compute() {                                    // ComputeShortestPath; returns the cells it expanded
+      const g = this.g, rhs = this.rhs, B = this.B, goal = this.goal, before = this.expanded;
+      for (;;) {
+        const live = this.top(), ks = this.key(this.start);
+        const o1 = live ? this.k1[0] : Infinity, o2 = live ? this.k2[0] : Infinity;
+        if (!((o1 < ks[0] || (o1 === ks[0] && o2 < ks[1])) || rhs[this.start] > g[this.start]) || !live) break;
+        const u = this.kv[0], kn = this.key(u);
+        if (o1 < kn[0] || (o1 === kn[0] && o2 < kn[1])) { this.push(u, kn[0], kn[1]); continue; }
+        const r = (u / C) | 0, c = u - r * C;
+        if (g[u] > rhs[u]) {
+          g[u] = rhs[u]; this.inq[u] = 0; this.expanded++;
+          for (let k = 0; k < 8; k++) {            // predecessors p = u - (dr, dc); the move p → u is (dr, dc)
+            const dr = NB_R[k], dc = NB_C[k], pr = r - dr, pc = c - dc;
+            if (pr < 0 || pc < 0 || pr >= R || pc >= C) continue;
+            const p = u - dr * C - dc;
+            if (p !== goal) { const v = bCost(B, p, u, dr, dc) + g[u]; if (v < rhs[p]) rhs[p] = v; }
+            this.updateVertex(p);
+          }
+        } else {
+          const gOld = g[u]; g[u] = Infinity; this.expanded++;
+          for (let k = 0; k < 8; k++) {
+            const dr = NB_R[k], dc = NB_C[k], pr = r - dr, pc = c - dc;
+            if (pr < 0 || pc < 0 || pr >= R || pc >= C) continue;
+            const p = u - dr * C - dc;
+            if (p !== goal && rhs[p] === bCost(B, p, u, dr, dc) + gOld) rhs[p] = this.bestSucc(p);
+            this.updateVertex(p);
+          }
+          this.updateVertex(u);
+        }
+      }
+      return this.expanded - before;
+    }
+    movedAndSensed(changed) {                      // the rover is at this.start and the belief changed at `changed`
+      if (!changed.length) return;
+      this.km += heur(this.last, this.start); this.last = this.start;
+      const touched = new Set();
+      for (const x of changed) {                   // moves out of x, into x, and diagonals that squeeze past x
+        const r = (x / C) | 0, c = x - r * C;
+        touched.add(x);
+        for (let k = 0; k < 8; k++) { const nr = r + NB_R[k], nc = c + NB_C[k]; if (nr >= 0 && nc >= 0 && nr < R && nc < C) touched.add(nr * C + nc); }
+      }
+      for (const u of [...touched].sort((a, b) => a - b)) {
+        if (u !== this.goal) this.rhs[u] = this.bestSucc(u);
+        this.updateVertex(u);
+      }
+    }
+    plan() {                                       // from the rover, always the neighbour with the least cost to go
+      const out = [this.start], N = R * C;
+      let u = this.start;
+      while (u !== this.goal && out.length <= N) {
+        const best = this.bestSucc(u);
+        if (best === Infinity) return [];
+        u = this.arg; out.push(u);
+      }
+      return u === this.goal ? out : [];
+    }
+  }
+  function senseDisk(range) {                      // cell offsets within `range` cells, row by row
+    const n = Math.floor(range), out = [];
+    for (let dr = -n; dr <= n; dr++) for (let dc = -n; dc <= n; dc++) if (dr * dr + dc * dc <= range * range) out.push([dr, dc]);
+    return out;
+  }
+  // One drive from si to gi. blocks: [{ cell: index, appears: step }] (obstacles that are not on the map).
+  // Returns the cells driven, and per step what changed, the work done, whether the plan broke and the new plan.
+  function sensorDrive(si, gi, range, blocks = [], prior = "none") {
+    const t0 = performance.now(), N = R * C, B = makeBelief(prior), offs = senseDisk(Math.max(range, 2));
+    const appears = new Map();
+    for (const rb of blocks) appears.set(rb.cell, Math.min(appears.has(rb.cell) ? appears.get(rb.cell) : rb.appears, rb.appears));
+    const firstSeen = new Uint16Array(N), spotted = new Map();   // roadblock cell → step it was sensed
+    const truth = (x, step) => (OBS[x] ? 1 : (appears.has(x) && appears.get(x) <= step ? 1 : 0));
+    function sense(at, step) {
+      const r = (at / C) | 0, c = at - r * C, changed = [];
+      for (const [dr, dc] of offs) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nc < 0 || nr >= R || nc >= C) continue;
+        const x = nr * C + nc, blk = truth(x, step);
+        if (!B.known[x] || B.blk[x] !== blk) {
+          B.known[x] = 1; B.blk[x] = blk; changed.push(x);
+          if (blk && !OBS[x] && !spotted.has(x)) spotted.set(x, step);
+        }
+        if (!firstSeen[x]) firstSeen[x] = step + 1;
+      }
+      return changed.sort((a, b) => a - b);
+    }
+    const edgeCosts = path => {
+      const out = [];
+      for (let k = 1; k < path.length; k++) {
+        const a = path[k - 1], z = path[k], ar = (a / C) | 0, zr = (z / C) | 0;
+        out.push(bCost(B, a, z, zr - ar, (z - zr * C) - (a - ar * C)));
+      }
+      return out;
+    };
+    const beliefStep = (a, z) => {
+      const ar = (a / C) | 0, zr = (z / C) | 0, v = bCost(B, a, z, zr - ar, (z - zr * C) - (a - ar * C));
+      return v === Infinity ? -1 : v;
+    };
+    let scratchMs = 0;                             // time spent on the A*-from-scratch comparison (not D* Lite's own)
+    const fromScratch = at => { const t = performance.now(), n = bestFirst(at, gi, PRIO.astar, beliefStep).explored.length; scratchMs += performance.now() - t; return n; };
+    const sameArr = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+
+    let changed = sense(si, 0);
+    const ds = new DStarLite(B, si, gi);
+    let work = ds.compute(), plan = ds.plan(), planCosts = edgeCosts(plan);
+    const n0 = fromScratch(si);
+    let astarWork = n0, replans = 0;
+    const steps = [{ cell: si, changed: changed.length, work, broke: false, astar: n0, plan }];
+    const driven = [si];
+    let cur = si, found = plan.length > 0;
+    while (found && cur !== gi && driven.length <= 4 * N) {
+      cur = plan[1]; driven.push(cur); ds.start = cur;
+      const step = driven.length - 1;
+      changed = sense(cur, step);
+      const rest = plan.slice(1);
+      const broke = changed.length > 0 && !sameArr(edgeCosts(rest), planCosts.slice(1));
+      work = 0;
+      if (changed.length) { ds.movedAndSensed(changed); work = ds.compute(); }
+      const rec = { cell: cur, changed: changed.length, work, broke, astar: 0 };
+      if (broke) {
+        replans++; rec.astar = fromScratch(cur); astarWork += rec.astar;
+        plan = ds.plan(); rec.plan = plan;
+      } else if (changed.length) {
+        const fresh = ds.plan();
+        if (!sameArr(fresh, rest)) rec.plan = fresh;   // an equally quick alternative (rare): follow D* Lite's choice
+        plan = fresh;
+      } else plan = rest;
+      steps.push(rec);
+      if (!plan.length) { found = false; break; }
+      planCosts = edgeCosts(plan);
+    }
+    found = found && cur === gi;
+    const ms = performance.now() - t0;
+    return { found, driven, steps, dstarWork: ds.expanded, astarWork, replans, firstSeen, spotted,
+             sensed: firstSeen.reduce((n, v) => n + (v ? 1 : 0), 0), ms, dsMs: ms - scratchMs };
+  }
+  // ---------------------------------------------------------------- the air route: a 1:1 port of robotnav.airspace
+  // Flight levels over the grid; a voxel is free if it clears the ground, trees, rocks and water; watchtowers see
+  // `sight` metres along clear lines of sight (the ground and trees block them). A* over 26 moves, paying flight time,
+  // a little per metre climbed, and (the stealth route) `exposure` seconds per second in sight. Same voxel and move
+  // order, the same arithmetic for the sight lines and the same ties as Python, so both find identical routes.
+  const AIRC = SCENE.air;
+  const AIR_MOVES = [];
+  for (let k = 0; k < 8; k++) AIR_MOVES.push([NB_R[k], NB_C[k], 0]);
+  AIR_MOVES.push([0, 0, 1], [0, 0, -1]);
+  for (const dk of [1, -1]) for (let k = 0; k < 8; k++) AIR_MOVES.push([NB_R[k], NB_C[k], dk]);
+  let airspace = null;                             // the current map's: { alt, free, seen, top, towers, eyes }
+  function buildAirspace() {
+    const L = AIRC.levels, N = R * C, wl = new Float64Array(N).fill(NaN), top = new Float64Array(N);
+    if (MAP.sea != null) for (let i = 0; i < N; i++) if (OBS[i] === 3) wl[i] = MAP.sea;   // (not WL: that one is 32-bit)
+    for (const p of MAP.ponds || []) for (const i of p.cells) wl[i] = p.level;
+    let lo = Infinity;
+    for (let i = 0; i < N; i++) {
+      const gnd = wl[i] === wl[i] ? Math.max(H[i], wl[i]) : H[i];
+      if (gnd < lo) lo = gnd;
+      top[i] = gnd + (OBS[i] === 2 ? AIRC.tree : OBS[i] === 1 ? AIRC.rock : 0);
+    }
+    const alt = [], free = new Uint8Array(L * N), seen = new Uint8Array(L * N), towers = MAP.towers || [], eyes = [];
+    for (let k = 0; k < L; k++) alt.push(lo + (k + 1) * AIRC.dz);
+    for (let k = 0; k < L; k++) for (let i = 0; i < N; i++) free[k * N + i] = alt[k] >= top[i] + AIRC.clear ? 1 : 0;
+    const sight2 = AIRC.sight * AIRC.sight;
+    for (const [tr, tc] of towers) {
+      const E = H[tr * C + tc] + AIRC.eye;
+      eyes.push(E);
+      for (let k = 0; k < L; k++) {
+        const dy = alt[k] - E;
+        for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+          const i = r * C + c, dr = r - tr, dc = c - tc;
+          if (!free[k * N + i] || (dr === 0 && dc === 0) || (dr * dr + dc * dc) + dy * dy > sight2) continue;
+          if (lineOfSight(top, tr, tc, E, r, c, alt[k])) seen[k * N + i] = 1;
+        }
+      }
+    }
+    airspace = { map: MAP, alt, free, seen, top, towers, eyes, lo };
+    return airspace;
+  }
+  function lineOfSight(top, tr, tc, E, r, c, a) {   // one sample per cell crossed; the ground and trees block the view
+    const n = Math.max(Math.abs(r - tr), Math.abs(c - tc));
+    for (let j = 1; j < n; j++) {
+      const f = j / n, pr = tr + f * (r - tr), pc = tc + f * (c - tc), line = E + f * (a - E);
+      if (top[Math.floor(pr + 0.5) * C + Math.floor(pc + 0.5)] > line) return false;
+    }
+    return true;
+  }
+  function airVoxel(cell) {                        // the lowest free voxel over a cell: where the drone takes off or lands
+    const N = R * C, i = cell[0] * C + cell[1];
+    for (let k = 0; k < AIRC.levels; k++) if (airspace.free[k * N + i]) return k * N + i;
+    return -1;
+  }
+  function airMoveOk(r, c, k, dr, dc, dk) {        // every voxel in the move's little box must be free
+    const N = R * C, f = airspace.free;
+    if (r + dr < 0 || r + dr >= R || c + dc < 0 || c + dc >= C || k + dk < 0 || k + dk >= AIRC.levels) return false;
+    for (let a = 0; a <= (dk ? 1 : 0); a++) for (let b = 0; b <= (dr ? 1 : 0); b++) for (let e = 0; e <= (dc ? 1 : 0); e++)
+      if (!f[(k + a * dk) * N + (r + b * dr) * C + (c + e * dc)]) return false;
+    return true;
+  }
+  function airMoveTime(dr, dc, dk) {
+    const h = dr && dc ? Math.SQRT2 : (dr || dc ? 1 : 0), dy = dk * AIRC.dz;
+    return Math.sqrt(h * h + dy * dy) / AIRC.speed + AIRC.climb * Math.max(dy, 0);
+  }
+  function airFly(start, goal, stealth) {          // A* through the airspace; voxels are ((level * rows) + row) * cols + col
+    const t0 = performance.now(), N = R * C, NV = AIRC.levels * N, s = airVoxel(start), g = airVoxel(goal);
+    if (s < 0 || g < 0) return { found: false, voxels: [], nodes: 0, cost: Infinity, ms: 0 };
+    const gk = Math.floor(g / N), gr = ((g - gk * N) / C) | 0, gc = g - gk * N - gr * C;
+    const w = stealth ? AIRC.exposure : 0, MT = AIR_MOVES.map(([dr, dc, dk]) => airMoveTime(dr, dc, dk)), seen = airspace.seen;
+    const h = v => {
+      const k = Math.floor(v / N), rem = v - k * N, r = (rem / C) | 0, c = rem - r * C, y = (k - gk) * AIRC.dz;
+      return Math.sqrt((r - gr) * (r - gr) + (c - gc) * (c - gc) + y * y) / AIRC.speed;
+    };
+    const gs = new Float64Array(NV).fill(Infinity), parent = new Int32Array(NV).fill(-1), closed = new Uint8Array(NV), heap = new Heap();
+    let tie = 0, nodes = 0;
+    gs[s] = 0; heap.push(h(s), tie++, s);
+    while (heap.size) {
+      const v = heap.pop();
+      if (closed[v]) continue;
+      closed[v] = 1; nodes++;
+      if (v === g) break;
+      const k = Math.floor(v / N), rem = v - k * N, r = (rem / C) | 0, c = rem - r * C;
+      for (let m = 0; m < 26; m++) {
+        const [dr, dc, dk] = AIR_MOVES[m];
+        if (!airMoveOk(r, c, k, dr, dc, dk)) continue;
+        const u = v + (dk * R + dr) * C + dc, ng = gs[v] + (MT[m] + (seen[u] ? w * MT[m] : 0));
+        if (ng < gs[u]) { gs[u] = ng; parent[u] = v; heap.push(ng + h(u), tie++, u); }
+      }
+    }
+    const found = closed[g] === 1, voxels = [];
+    if (found) { for (let v = g; v !== -1; v = parent[v]) voxels.push(v); voxels.reverse(); }
+    return { found, voxels, nodes, cost: found ? gs[g] : Infinity, ms: performance.now() - t0 };
   }
   function statsOf(idx) {
     let dist = 0, climb = 0, rough = 0;
@@ -1550,17 +2025,31 @@ vec3 groundNormal(vec3 nv, vec2 p) {
       for (let k = 1; k < idx.length; k++) cost += stepCost(idx[k - 1], idx[k]);
       return { key: p.key, name: p.name, color: p.color, dashed: !!p.dashed, found: res.found, cost: res.found ? cost : Infinity,
                nodes: res.explored.length, peak: res.peak, ms, idx, cells: idx.map(i => [(i / C) | 0, i % C]),
-               explored: res.explored, stats: res.found ? statsOf(idx) : null };
+               explored: res.explored, opened: res.opened, stats: res.found ? statsOf(idx) : null };
     });
   }
 
   // ---------------------------------------------------------------- route tubes, timing and search areas
-  const dotTex = (() => {
-    const cv = document.createElement("canvas"); cv.width = cv.height = 32;
-    const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.beginPath(); g.arc(16, 16, 14, 0, Math.PI * 2); g.fill();
-    return new THREE.CanvasTexture(cv);
-  })();
   let routes = [], current = null;
+  function cellTexture(fill) {                       // RGBA, one texel per cell (row r is texel row r), no filtering
+    const data = new Uint8Array(R * C * 4);
+    fill(data);
+    const t = new THREE.DataTexture(data, C, R, THREE.RGBAFormat);
+    t.needsUpdate = true;
+    return t;
+  }
+  function searchTex(rt) {                           // per cell: when it was searched (RG) and first queued (BA), 16-bit each
+    if (!rt.searchTex) rt.searchTex = cellTexture(d => {
+      rt.explored.forEach((i, k) => { d[i * 4] = (k + 1) >> 8; d[i * 4 + 1] = (k + 1) & 255; });
+      if (rt.opened) for (let i = 0; i < rt.opened.length; i++) if (rt.opened[i] >= 0) { const o = rt.opened[i] + 1; d[i * 4 + 2] = o >> 8; d[i * 4 + 3] = o & 255; }
+    });
+    return rt.searchTex;
+  }
+  function showSearchOf(rt, step, glow, dim = 0) {   // draw rt's search into the ground, as it stood after `step` cells
+    OVER.uSearch.value = searchTex(rt);
+    OVER.uSearchP.value.set(step, 1, glow, dim);
+    OVER.uSearchCol.value.copy(rt.lin || (rt.lin = lin(rt.color)));
+  }
   const dashCv = (() => {                           // white dash, clear gap: the shortest route is drawn dashed
     const cv = document.createElement("canvas"); cv.width = 64; cv.height = 4;
     const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, 38, 4); return cv;
@@ -1588,6 +2077,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     if (rt.dashed) dashMap(rt.planMat, rt.len, 2.6);
     rt.planTube = new THREE.Mesh(new THREE.TubeGeometry(rt.curve, rt.segs, rt.user ? 0.42 : 0.3, RADIAL, false), rt.planMat);
     rt.planTube.renderOrder = 5; rt.planTube.visible = false; scene.add(rt.planTube);
+    rt.tube.userData.segs = rt.planTube.userData.segs = rt.segs;
     // where the rover is after t seconds: cumulative time per cell (tAt) and distance along the tube (sAt)
     const cum = [0];
     for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + pts[k].distanceTo(pts[k - 1]));
@@ -1595,7 +2085,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     rt.sAt = new Float64Array(n); rt.tAt = new Float64Array(n);
     let j = 0;
     for (let k = 0; k < n; k++) {
-      if (dense) {
+      if (dense && !rt.air) {                       // (a flight has one point per voxel already)
         const x = toX(rt.cells[k][1]), z = toZ(rt.cells[k][0]);
         let bestJ = j, bestD = Infinity;
         for (let q = j; q < Math.min(pts.length, j + 40); q++) {
@@ -1605,24 +2095,18 @@ vec3 groundNormal(vec3 nv, vec2 p) {
         j = bestJ;
       } else j = Math.min(k, pts.length - 1);
       rt.sAt[k] = cum[j] * scale;
-      if (k) rt.tAt[k] = rt.tAt[k - 1] + stepCost(rt.idx[k - 1], rt.idx[k]);
+      if (k) rt.tAt[k] = rt.tAt[k - 1] + (rt.stepT ? rt.stepT[k] : stepCost(rt.idx[k - 1], rt.idx[k]));
     }
-    rt.search = null;
-    if (!rt.explored.length) return;
-    const buf = new Float32Array(rt.explored.length * 3);
-    rt.explored.forEach((i, k) => buf.set([toX(i % C), H[i] + 0.12, toZ((i / C) | 0)], k * 3));
-    const pg = new THREE.BufferGeometry(); pg.setAttribute("position", new THREE.BufferAttribute(buf, 3));
-    rt.search = new THREE.Points(pg, new THREE.PointsMaterial({ color: rt.color, size: 0.38, map: dotTex, alphaTest: 0.4, transparent: true, opacity: 0.7, depthWrite: false }));
-    rt.search.visible = false; scene.add(rt.search);
   }
   function disposeRouteVisual(rt) {
-    [rt.tube, rt.search, rt.planTube].forEach(o => {
+    [rt.tube, rt.planTube].forEach(o => {
       if (!o) return;
       scene.remove(o); o.geometry.dispose();
-      if (o.material.map && o.material.map !== dotTex) o.material.map.dispose();
+      if (o.material.map) o.material.map.dispose();
       o.material.dispose();
     });
-    rt.tube = rt.search = rt.planTube = null;
+    rt.tube = rt.planTube = null;
+    for (const k of ["searchTex", "knownTex"]) if (rt[k]) { rt[k].dispose(); rt[k] = null; }
   }
 
   // ---------------------------------------------------------------- start and finish flags
@@ -1633,7 +2117,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     const paint = () => {
       const g = cv.getContext("2d"); g.clearRect(0, 0, w, 96);
       g.fillStyle = bg; roundRect(g, 4, 4, w - 8, 88, 14); g.fill();
-      g.fillStyle = fg; g.font = "700 56px 'Barlow Condensed', 'Arial Narrow', sans-serif";
+      g.fillStyle = fg; g.font = "800 44px 'JetBrains Mono', ui-monospace, monospace";
       g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text, w / 2, 52);
       tex.needsUpdate = true;
     };
@@ -2175,7 +2659,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
       g.strokeStyle = PATH_COLORS[i % PATH_COLORS.length]; g.stroke();
     }
     g.globalAlpha = 1;
-    const shown = routes.filter(r => r.found && routeShown(r)).sort((a, b) => (a === current) - (b === current));
+    const shown = routes.filter(r => r.found && routeShown(r) && !(r === current && r.key === DSTAR.key)).sort((a, b) => (a === current) - (b === current));
     for (const rt of shown) {
       g.beginPath();
       rt.cells.forEach(([r, c], k) => { const x = (c + 0.5) * MMS / C, y = (r + 0.5) * MMS / R; if (k) g.lineTo(x, y); else g.moveTo(x, y); });
@@ -2185,6 +2669,12 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     }
     g.setLineDash([]);
     g.globalAlpha = 1;
+    if (air.on && airspace) for (const [r, c] of airspace.towers) {   // watchtowers: their reach, and where they stand
+      const x = (c + 0.5) * MMS / C, y = (r + 0.5) * MMS / R;
+      g.beginPath(); g.arc(x, y, AIRC.sight * MMS / C, 0, Math.PI * 2); g.fillStyle = "rgba(226, 70, 60, 0.12)"; g.fill();
+      g.lineWidth = 1; g.strokeStyle = "rgba(255, 90, 75, 0.7)"; g.stroke();
+      g.beginPath(); g.moveTo(x, y - 4); g.lineTo(x + 3.5, y + 3); g.lineTo(x - 3.5, y + 3); g.closePath(); g.fillStyle = "#ff4d3d"; g.fill();
+    }
     if (!START) return;                             // parked: no start or finish
     [[START, "#4fae6a"], [GOAL, "#f4f1e8"]].forEach(([[r, c], fill]) => {
       g.beginPath(); g.arc((c + 0.5) * MMS / C, (r + 0.5) * MMS / R, 4.2, 0, Math.PI * 2);
@@ -2202,6 +2692,15 @@ vec3 groundNormal(vec3 nv, vec2 p) {
       g.beginPath(); g.moveTo(dx, dy); g.lineTo(rx, ry); g.stroke(); g.setLineDash([]);
       g.fillStyle = "#f4f1e8";
       g.beginPath(); g.moveTo(dx, dy - 4.5); g.lineTo(dx + 4.5, dy); g.lineTo(dx, dy + 4.5); g.lineTo(dx - 4.5, dy); g.closePath(); g.fill();
+    }
+    if (sensing() && senseView.step >= 0) {        // the sensor drive: where it has been, and its plan from here
+      const k = senseView.step, plan0 = current.run.steps[current.planFrom[k]].plan, at = (i) => [(i % C + 0.5) * MMS / C, (((i / C) | 0) + 0.5) * MMS / R];
+      g.lineJoin = g.lineCap = "round";
+      g.beginPath(); for (let j = 0; j <= k; j++) { const [x, y] = at(current.idx[j]); if (j) g.lineTo(x, y); else g.moveTo(x, y); }
+      g.lineTo(rx, ry); g.lineWidth = 2.4; g.strokeStyle = DSTAR.color; g.stroke();
+      g.beginPath(); g.moveTo(rx, ry);
+      for (let j = k - current.planFrom[k] + 1; j < plan0.length; j++) { const [x, y] = at(plan0[j]); g.lineTo(x, y); }
+      g.setLineDash([3, 3]); g.lineWidth = 1.6; g.globalAlpha = 0.9; g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
     }
     g.save(); g.translate(rx, ry); g.rotate(Math.atan2(fwd.x, -fwd.z));
     g.beginPath(); g.moveTo(0, -7); g.lineTo(5.5, 5.5); g.lineTo(0, 2.5); g.lineTo(-5.5, 5.5); g.closePath();
@@ -2228,7 +2727,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
       const d = rt.found ? (rt.cost - best) / best * 100 : null;
       tr.innerHTML = `<td><span class="alg"><span class="pos">${i + 1}</span><span class="swatch${rt.dashed ? " dashed" : ""}" style="background:${rt.color};color:${rt.color}"></span>${rt.name}</span></td>
         <td>${rt.found ? fmtTime(rt.cost) : "—"} <span class="delta ${d !== null && d < 0.05 ? "best" : ""}">${fmtDelta(d)}</span></td>
-        <td>${rt.found ? rt.stats.distance_m.toFixed(0) : "—"}</td><td class="hide-sm">${rt.found ? rt.stats.climb_m.toFixed(0) : "—"}</td>
+        <td>${rt.found ? rt.stats.distance_m.toFixed(0) : "—"}</td><td class="hide-sm">${!rt.found ? "—" : rt.air ? rt.seenS.toFixed(1) : rt.stats.climb_m.toFixed(0)}</td>
         <td>${rt.user ? "—" : rt.nodes.toLocaleString()}</td><td class="hide-sm">${rt.user ? "—" : rt.ms.toFixed(rt.ms < 10 ? 1 : 0)}</td>`;
       if (rt.found) {
         tr.tabIndex = 0;
@@ -2242,10 +2741,20 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     renderSaving();
     return ranked;
   }
-  const bestPlanner = ranked => ranked.find(r => r.found && r.key !== "short") || ranked[0];
+  const bestPlanner = ranked => (air.on && ranked.find(r => r.key === "stealth" && r.found))
+    || ranked.find(r => r.found && r.key !== "short" && r.key !== DSTAR.key) || ranked[0];
+  const planners = () => routes.filter(r => r.found && !r.user && r.key !== "short" && r.key !== DSTAR.key);   // the five, full map known
   function renderSaving() {                         // the demo in one line: reading the hills beats the shortest route
     const el = $("board-save"), short = routes.find(r => r.key === "short" && r.found);
-    const quick = routes.filter(r => r.found && !r.user && r.key !== "short").map(r => r.cost);
+    const st = routes.find(r => r.key === "stealth" && r.found), di = routes.find(r => r.key === "direct" && r.found);
+    if (air.on && st && di) {                       // in the air: staying hidden, for how much flight time
+      el.hidden = false;
+      el.innerHTML = di.seenS - st.seenS >= 0.05
+        ? `Staying hidden: seen <b>${st.seenS.toFixed(1)} s</b> instead of ${di.seenS.toFixed(1)} s, for ${pct(st.cost, di.cost)} more flight time.`
+        : `Here the direct flight is already out of sight: seen ${di.seenS.toFixed(1)} s.`;
+      return;
+    }
+    const quick = planners().map(r => r.cost);
     if (parked || !short || !quick.length) { el.hidden = true; return; }
     const best = Math.min(...quick), saved = short.cost - best;
     el.hidden = false;
@@ -2278,6 +2787,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     chase:  { label: "Chase cam",     dist: 8,   phi: 1.18,   minD: 4,  maxD: 22,  minP: 0.5,  maxP: 1.4,   rotate: true,  follow: true,  yawRate: 2.4 },
     course: { label: "Overview",      dist: 120, phi: 0.95,   minD: 20, maxD: 240, minP: 0.05, maxP: 1.45,  rotate: true,  follow: false, yawRate: 0, theta: -0.57 },
     plan:   { label: "Route planner", dist: 0,   phi: 0.0006, minD: 12, maxD: 400, minP: 0,    maxP: 0.001, rotate: false, follow: false, yawRate: 0, theta: 0, pan: true, fit: true },
+    replay: { label: "Search replay", dist: 80,  phi: 0.6,    minD: 8,  maxD: 340, minP: 0.05, maxP: 1.35,  rotate: true,  follow: false, yawRate: 0, theta: 0, custom: true, target: new THREE.Vector3() },
   };
   let planView = null;
   function computePlanView() {                      // fit the whole map into the space the panels leave free
@@ -2329,7 +2839,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     const cx0 = (Math.min(...pts.map(p => p[0])) + Math.max(...pts.map(p => p[0]))) / 2;
     const cy0 = (Math.min(...pts.map(p => p[1])) + Math.max(...pts.map(p => p[1]))) / 2;
     const blocks = [[-1e4, -1e4, m, 1e4], [W - m, -1e4, 1e4, 1e4], [-1e4, -1e4, 1e4, m], [-1e4, H - m, 1e4, 1e4]];   // screen edges
-    for (const id of ["title-board", "board", "drone", "paths", "tele", "planbar", "tour-cap"]) {   // every panel on show
+    for (const id of ["title-board", "board", "drone", "paths", "tele", "planbar", "tour-cap", "sense"]) {   // every panel on show
       const el = $(id), r = el.getBoundingClientRect();                                     // (a phone's path list is a
       if (!el.hidden && r.width && !(id === "paths" && narrow())) blocks.push([r.left - m, r.top - m, r.right + m, r.bottom + m]);   // brief overlay)
     }
@@ -2359,6 +2869,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     } else camera.setViewOffset(innerWidth, innerHeight, viewNow.x, viewNow.y, innerWidth / viewNow.s, innerHeight / viewNow.s);
   }
   function rigPose(M, outPos, outTarget) {
+    if (M.custom) { outTarget.copy(M.target); outPos.copy(M.target).add(sphV.setFromSphericalCoords(M.dist, M.phi, M.theta)); return; }
     const theta = M.theta !== undefined ? M.theta : Math.atan2(-headS.x, -headS.z);
     if (M.fit) {
       const pv = planView || computePlanView();
@@ -2422,20 +2933,22 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     routes.forEach(rt => {
       if (!rt.tube) return;
       const sel = rt === current, on = planning || routeShown(rt), strong = sel || rt.dashed;
-      rt.tube.visible = on && !thick;
-      rt.planTube.visible = on && thick;
-      rt.planMat.depthTest = !planning;             // outside the planner, hills hide the far side of a route
+      rt.tube.visible = on && !thick && !replay.on;
+      rt.planTube.visible = on && thick && !replay.on;   // (watching the search draws its own two)
+      rt.planMat.depthTest = !planning && !replay.on;   // outside the planner, hills hide the far side of a route
       rt.planMat.opacity = sel ? 0.95 : rt.dashed ? 0.9 : 0.6;
       rt.planTube.renderOrder = sel ? 5.5 : 5;
       rt.mat.opacity = strong ? 1 : 0.45;
       rt.mat.emissiveIntensity = strong ? 0.55 : 0.25;
       rt.mat.depthWrite = sel;
-      if (rt.search) rt.search.visible = showSearch && sel;
+      if (!sel || rt.key !== DSTAR.key || planning) { rt.tube.geometry.setDrawRange(0, Infinity); rt.planTube.geometry.setDrawRange(0, Infinity); }
     });
-    if (extraGroup) {                               // keep the planner view clean
-      extraGroup.visible = !planning;
-      extraGroup.children.forEach(o => { if (o.userData.lod) o.visible = o.userData.lod === (thick ? "far" : "near"); });
+    if (extraGroup) {                               // keep the planner view clean (and the sky: those are ground routes)
+      extraGroup.visible = !planning && !replay.on && !air.on;
+      const hideFocus = !!current && current.key === DSTAR.key && !planning;
+      extraGroup.children.forEach(o => { if (o.userData.lod) o.visible = o.userData.lod === (thick ? "far" : "near") && !(hideFocus && o.userData.focus); });
     }
+    senseShow(); airShow();
   }
   function sAtTime(rt, tt) {                        // distance along the route after tt seconds, and metres per second there
     const tA = rt.tAt, sA = rt.sAt, last = tA.length - 1;
@@ -2448,8 +2961,9 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   function installPair(start, goal, res) {          // new start/finish: new routes, flags and board
     routes.forEach(disposeRouteVisual);
     START = start.slice(); GOAL = goal.slice(); parked = false;
-    routes = res; current = null;                   // callers select() a route straight after
-    routes.forEach((rt, k) => { if (rt.found) buildRouteVisual(rt, 0.22 + k * 0.06); });
+    sensor.blocks = []; senseClear();               // a new trip: no roadblocks yet
+    routes = air.on ? res : res.concat([sensorRoute(start, goal)]); current = null;   // callers select() a route straight after
+    routes.forEach((rt, k) => { if (rt.found) buildRouteVisual(rt, 0.22 + k * 0.06, rt.air ? rt.pts : undefined); });
     resetDraw();
     buildFlags(endpointFlags());
     buildExtras(); renderPathsList();               // the driven preset's line is drawn bolder, without its own label
@@ -2482,6 +2996,445 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     G.alg.textContent = "—";
     restartLap(false);
   }
+
+  // ---------------------------------------------------------------- the sensor drive on screen: fog, reach, plan, roadblocks
+  // Pick the D* Lite row and the rover drives seeing only `range` metres round itself: ground it hasn't sensed is
+  // dimmed, a ring shows its reach, the dashed line is its current plan (it turns red as a plan breaks and gives way to
+  // the repaired one), and the line behind it is where it has been. A roadblock you drop appears in its world from
+  // that moment, and it finds it when it comes into range. The drive is computed whole (in a few milliseconds) and
+  // replayed by the clock, so Restart shows the same drive.
+  const sensor = { range: 5, blocks: [] };          // what the sensor reaches; roadblocks dropped so far ({ cell, appears })
+  const SN = { panel: $("sense"), replans: $("sn-replans"), dwork: $("sn-dwork"), awork: $("sn-awork"), seen: $("sn-seen"),
+               msg: $("sn-msg"), block: $("sn-block"), clear: $("sn-clear"), ranges: [...document.querySelectorAll("[data-range]")] };
+  const senseView = { step: -1, planStep: -1, line: null, ghost: null, ghostT: 0, arming: false, blocks: null, hudT: 1, note: "", noteT: 0 };
+  const sensing = () => !!current && current.key === DSTAR.key && !plan.mode && !replay.on;
+  function sensorRoute(start, goal) {               // drive start → goal with the sensor: a route for the board, like the planners'
+    const si = start[0] * C + start[1], gi = goal[0] * C + goal[1];
+    const run = sensorDrive(si, gi, sensor.range, sensor.blocks);
+    const idx = run.found ? run.driven : [];
+    let cost = 0;
+    for (let k = 1; k < idx.length; k++) cost += stepCost(idx[k - 1], idx[k]);
+    const n = run.steps.length, planFrom = new Int32Array(n), cumD = new Int32Array(n), cumA = new Int32Array(n), cumRe = new Int32Array(n);
+    let last = 0, d = 0, a = 0, re = 0;            // per step: the plan in force, and running totals for the panel
+    run.steps.forEach((st, k) => {
+      if (st.plan) last = k;
+      planFrom[k] = last; d += st.work; a += st.astar; re += st.broke ? 1 : 0; cumD[k] = d; cumA[k] = a; cumRe[k] = re;
+    });
+    const seenAt = new Int32Array(n);               // cells sensed by each step
+    for (const v of run.firstSeen) if (v && v - 1 < n) seenAt[v - 1]++;
+    for (let k = 1; k < n; k++) seenAt[k] += seenAt[k - 1];
+    return { key: DSTAR.key, name: `${DSTAR.name} · ${sensor.range} m sensor`, color: DSTAR.color, found: run.found,
+             cost: run.found ? cost : Infinity, nodes: run.dstarWork, peak: 0, ms: run.dsMs, idx, cells: idx.map(i => [(i / C) | 0, i % C]),
+             explored: [], stats: run.found ? statsOf(idx) : null, run, planFrom, cumD, cumA, cumRe, seenAt };
+  }
+  function knownTex(rt) {                           // per cell: the step it was first sensed + 1 (RG, 16-bit)
+    if (!rt.knownTex) rt.knownTex = cellTexture(d => {
+      const f = rt.run.firstSeen;
+      for (let i = 0; i < f.length; i++) if (f[i]) { d[i * 4] = f[i] >> 8; d[i * 4 + 1] = f[i] & 255; }
+    });
+    return rt.knownTex;
+  }
+  function planLine(cells, color, radius, solid) {  // a dashed (or solid) line along cells (flat indices), drawn over everything
+    if (cells.length < 2) return null;
+    const pts = cells.map(i => new THREE.Vector3(toX(i % C), H[i] + 0.5, toZ((i / C) | 0)));
+    const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal"), segs = pts.length * 2;
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false });
+    mat.color.convertSRGBToLinear();
+    if (!solid) dashMap(mat, curve.getLength(), 1.7);
+    const m = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, radius, RADIAL, false), mat);
+    m.renderOrder = 6; m.userData.segs = segs; m.userData.n = pts.length;
+    scene.add(m);
+    return m;
+  }
+  function dropLine(m) { if (m) { scene.remove(m); m.geometry.dispose(); if (m.material.map) m.material.map.dispose(); m.material.dispose(); } return null; }
+  function senseClear() {                           // forget what's drawn for the sensor drive (a new trip or a new drive)
+    senseView.line = dropLine(senseView.line); senseView.ghost = dropLine(senseView.ghost);
+    senseView.step = senseView.planStep = -1; senseView.note = "";
+  }
+  let hedgeGeo = null, hedgeMat = null;
+  function hedgehog() {                             // a steel tank trap: three beams crossed at right angles, standing on three ends
+    if (!hedgeGeo) {
+      const beam = new THREE.BoxGeometry(1.45, 0.12, 0.12), tilt = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(-1, 0, 1).normalize(), Math.acos(1 / Math.sqrt(3)));
+      const lift = new THREE.Matrix4().makeTranslation(0, 1.45 / 2 / Math.sqrt(3) - 0.04, 0);
+      const along = [new THREE.Matrix4(), new THREE.Matrix4().makeRotationZ(Math.PI / 2), new THREE.Matrix4().makeRotationY(Math.PI / 2)];
+      hedgeGeo = mergeGeos(along.map(m => [beam, lift.clone().multiply(tilt).multiply(m)]));
+      hedgeMat = std("#4a3f37", { metalness: 0.65, roughness: 0.55 });
+    }
+    const mesh = new THREE.Mesh(hedgeGeo, hedgeMat);
+    mesh.castShadow = mesh.receiveShadow = true;
+    return mesh;
+  }
+  function buildBlocks() {                          // the roadblocks dropped on this trip, with a red ring once the rover has seen them
+    if (senseView.blocks) { scene.remove(senseView.blocks); senseView.blocks.traverse(o => { if (o.isMesh && o.geometry !== hedgeGeo) { o.geometry.dispose(); o.material.dispose(); } }); }
+    const g = new THREE.Group();
+    for (const b of sensor.blocks) {
+      const r = (b.cell / C) | 0, c = b.cell % C, x = toX(c), z = toZ(r), m = hedgehog();
+      m.position.set(x, H[b.cell], z); m.rotation.y = (r * 7 + c * 13) % 6;
+      const ring = groundRing(x, z, 0.85, 1.25, "#ff4d3d", 0.9);
+      ring.visible = false; m.userData.ring = ring; m.userData.cell = b.cell;
+      g.add(m, ring);
+    }
+    scene.add(g);
+    senseView.blocks = g;
+    g.visible = sensing();
+  }
+  function reachableWith(a, b, extra) {             // can the rover still get from a to b with these extra cells blocked?
+    const N = R * C, blocked = new Uint8Array(N), seen = new Uint8Array(N), q = [a];
+    for (const i of extra) blocked[i] = 1;
+    seen[a] = 1;
+    while (q.length) {
+      const u = q.pop();
+      if (u === b) return true;
+      const r = (u / C) | 0, c = u - r * C;
+      for (let k = 0; k < 8; k++) {
+        const nr = r + NB_R[k], nc = c + NB_C[k];
+        if (nr < 0 || nc < 0 || nr >= R || nc >= C) continue;
+        const n = nr * C + nc;
+        if (seen[n] || blocked[n] || stepCost(u, n) < 0) continue;
+        if (NB_R[k] && NB_C[k] && (blocked[u + NB_R[k] * C] || blocked[u + NB_C[k]])) continue;
+        seen[n] = 1; q.push(n);
+      }
+    }
+    return false;
+  }
+  function senseSay(html, tone) { SN.msg.innerHTML = html; SN.msg.style.color = tone === "bad" ? "var(--bad)" : ""; senseView.noteT = 3.5; senseView.note = html; }
+  function blockWhy(cell) {                         // may a roadblock go here? null if yes, else why not
+    const rt = current, i = cell[0] * C + cell[1], k = Math.max(0, senseView.step), end = rt.idx[rt.idx.length - 1];
+    if (OBS[i] === 3) return "That's water: the rover can't go there anyway.";
+    if (OBS[i]) return "There's a rock or a tree there already.";
+    if (sensor.blocks.some(b => b.cell === i)) return "There's a roadblock there already.";
+    if (i === end) return "Not on the finish.";
+    const next = rt.idx[Math.min(k + 1, rt.idx.length - 1)];
+    if (i === rt.idx[k] || i === next) return "Too close: the rover is right there.";
+    if (!reachableWith(next, end, [...sensor.blocks.map(b => b.cell), i])) return "That would cut the rover off from the finish.";
+    return null;
+  }
+  function armBlock(on) {
+    senseView.arming = on;
+    SN.block.setAttribute("aria-pressed", String(on));
+    SN.block.textContent = on ? "Click the ground…" : "Drop a roadblock";
+    if (on) senseSay(`${tapWord} the ground ahead of the rover to drop a roadblock in its way.`);
+    if (!on && cvs.style.cursor === "crosshair") cvs.style.cursor = "";
+  }
+  function resense(keepTime) {                      // drive again with the current reach and roadblocks
+    const old = routes.find(r => r.key === DSTAR.key);
+    if (!old) return;
+    const wasCurrent = current === old, t = simT;
+    disposeRouteVisual(old);
+    const fresh = sensorRoute(START, GOAL);
+    routes[routes.indexOf(old)] = fresh;
+    if (fresh.found) buildRouteVisual(fresh, 0.22 + 6 * 0.06);
+    senseClear();
+    renderBoard();
+    if (wasCurrent && fresh.found) {
+      current = fresh; markSelected(fresh.name);
+      $("sum-pick").textContent = `${drivenPreset() >= 0 ? `P${drivenPreset() + 1} · ` : ""}${fresh.name} · ${fmtTime(fresh.cost)}`;
+      G.alg.textContent = fresh.name;
+      if (keepTime) simT = Math.min(t, fresh.cost); else restartLap(false);   // the drive so far is the same: carry on
+    } else if (wasCurrent) select(bestPlanner(renderBoard()).name, false);
+    buildBlocks(); refreshLayers(); drawMapLayer();
+  }
+  function dropBlock(cell) {
+    const why = blockWhy(cell);
+    if (why) { senseSay(why, "bad"); return false; }
+    sensor.blocks.push({ cell: cell[0] * C + cell[1], appears: Math.max(0, senseView.step) + 1 });
+    armBlock(false);
+    resense(true);
+    SN.clear.hidden = false;
+    senseSay(`Roadblock down at row ${cell[0]}, col ${cell[1]}. The rover doesn't know yet: it will find it when it comes within ${sensor.range} m.`);
+    if (!playing) { playing = true; syncPlay(); }
+    return true;
+  }
+  SN.block.onclick = () => armBlock(!senseView.arming);
+  SN.clear.onclick = () => { sensor.blocks = []; SN.clear.hidden = true; armBlock(false); resense(false); senseSay("Roadblocks cleared: the same drive as before."); };
+  SN.ranges.forEach(b => b.addEventListener("click", () => {
+    const r = +b.dataset.range;
+    if (r === sensor.range) return;
+    sensor.range = r;
+    SN.ranges.forEach(x => x.setAttribute("aria-pressed", String(+x.dataset.range === r)));
+    resense(false);
+    const rt = current && current.key === DSTAR.key ? current : null;
+    if (rt) { playing = true; syncPlay(); senseSay(`Now it sees ${r} m: a new drive from the start.`); }
+  }));
+  function senseShow() {                            // the panel, the roadblocks and the fog show only on the sensor drive
+    const on = sensing();
+    SN.panel.hidden = !on;
+    if (senseView.blocks) senseView.blocks.visible = on;
+    if (!on) { if (senseView.arming) armBlock(false); senseView.line = dropLine(senseView.line); senseView.ghost = dropLine(senseView.ghost); senseView.planStep = -1; OVER.uFogP.value.y = 0; }
+  }
+  function senseTick(dt, t) {                       // per frame on the sensor drive: fog, reach, plan, panel
+    if (!sensing()) return;
+    const rt = current, tA = rt.tAt, last = tA.length - 1;
+    let k = 0, hi = last;                           // the last cell the rover has reached by simT
+    while (k < hi) { const mid = (k + hi + 1) >> 1; if (tA[mid] <= simT) k = mid; else hi = mid - 1; }
+    const frac = k < last && tA[k + 1] > tA[k] ? clamp((simT - tA[k]) / (tA[k + 1] - tA[k]), 0, 1) : 0;
+    senseView.step = k;
+    OVER.uKnown.value = knownTex(rt);
+    OVER.uFogP.value.set(k, 1, sensor.range, t);
+    OVER.uRoverXZ.value.set(rover.group.position.x, rover.group.position.z);
+    const ps = rt.planFrom[k];
+    if (ps !== senseView.planStep) {                // a new plan: the old one turns red and fades if it broke
+      senseView.ghost = dropLine(senseView.ghost);
+      if (senseView.line && ps > senseView.planStep && rt.run.steps[ps].broke) {
+        senseView.ghost = senseView.line; senseView.ghost.material.color.set("#ff4d3d").convertSRGBToLinear(); senseView.ghostT = 1;
+      } else dropLine(senseView.line);
+      senseView.line = planLine(rt.run.steps[ps].plan, DSTAR.color, farView ? 0.3 : 0.14);
+      senseView.planStep = ps;
+    }
+    if (senseView.line) {                           // hide what the rover has already driven of its plan
+      const L = senseView.line.userData, along = (k - ps + frac) / Math.max(1, L.n - 1);
+      senseView.line.geometry.setDrawRange(Math.floor(clamp(along, 0, 1) * L.segs) * RADIAL * 6, Infinity);
+    }
+    if (senseView.ghost) {
+      senseView.ghostT -= dt / 1.1;
+      if (senseView.ghostT <= 0) senseView.ghost = dropLine(senseView.ghost);
+      else senseView.ghost.material.opacity = 0.85 * senseView.ghostT;
+    }
+    if (senseView.blocks) senseView.blocks.children.forEach(o => {   // ringed red once spotted
+      if (!o.userData.ring) return;
+      const at = rt.run.spotted.get(o.userData.cell);
+      o.userData.ring.visible = at !== undefined && at <= k;
+      if (o.userData.ring.visible) o.userData.ring.material.opacity = 0.55 + 0.4 * Math.abs(Math.sin(t * 4));
+    });
+    if ((senseView.hudT += dt) < 0.12) return;
+    senseView.hudT = 0;
+    SN.replans.textContent = rt.cumRe[k].toLocaleString();
+    SN.dwork.textContent = rt.cumD[k].toLocaleString();
+    SN.awork.textContent = rt.cumA[k].toLocaleString();
+    SN.seen.textContent = Math.round(rt.seenAt[k] / (R * C) * 100);
+    if (senseView.noteT > 0) { senseView.noteT -= 0.12; return; }   // a message you caused stays up a moment
+    const astar = routes.find(r => r.key === "astar" && r.found), done = k >= last && simT >= rt.cost - 1e-9;
+    let html;
+    const spot = [...rt.run.spotted.values()].filter(s => s <= k).sort((a, b) => b - a)[0];
+    if (done && astar) {
+      const dA = rt.cumD[k], aA = rt.cumA[k], ratio = aA >= dA ? `${(aA / Math.max(1, dA)).toFixed(1)}× more than D* Lite`
+        : `${(dA / Math.max(1, aA)).toFixed(1)}× less: at this range, planning from scratch is cheaper`;
+      html = `Finished in <b>${fmtTime(rt.cost)}</b>, ${pct(rt.cost, astar.cost)} longer than A* with the whole map known (${fmtTime(astar.cost)}). `
+        + `Planning from scratch every time the plan broke would have searched ${aA.toLocaleString()} cells, ${ratio}.`;
+    } else if (spot !== undefined && tA[k] - tA[spot] < 6) html = `<b>Roadblock spotted.</b> D* Lite repairs the plan round it instead of planning again from scratch.`;
+    else if (k < 4) html = `It knows only what its sensor has seen. Dimmed ground is unseen, assumed flat and open, so the dashed plan heads straight for the finish.`;
+    else html = `Each step brings new ground into view: when it breaks the plan (it turns red), D* Lite repairs it. Dimmed: still unseen.`;
+    if (html !== senseView.note) { SN.msg.innerHTML = html; SN.msg.style.color = ""; senseView.note = html; }
+  }
+
+  // ---------------------------------------------------------------- the air route on screen: the drone, the towers, their sight
+  // Air mode swaps the tank for a drone with one red eye and races two flights between the same start and finish: the
+  // stealth route, which hides from the watchtowers behind hills, and the direct one, which ignores them. The ground
+  // shows where the towers see (red: even low down; amber: only up high, so flying low hides). A tower that sees the
+  // drone swings its searchlight onto it and a red sight line joins them. Thin lines drop from the route to the ground
+  // to show how high it flies.
+  const air = { on: false, drone: null, towers: null, list: [], curtain: null, curtainOf: null, threat: null, seenNow: false, yaw: 0, roll: 0 };
+  const AIR_COLORS = { stealth: "#a98bff", direct: "#f2a93b" };
+  let glowTex = null, rotorTex = null;
+  function glowTexture() {                          // a soft round glow, for the eye
+    if (glowTex) return glowTex;
+    const cv = document.createElement("canvas"); cv.width = cv.height = 64;
+    const g = cv.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.25, "rgba(255,255,255,0.55)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    return (glowTex = new THREE.CanvasTexture(cv));
+  }
+  function rotorTexture() {                         // a spinning rotor: two blades smeared round a faint disc
+    if (rotorTex) return rotorTex;
+    const cv = document.createElement("canvas"); cv.width = cv.height = 128;
+    const g = cv.getContext("2d"), gr = g.createRadialGradient(64, 64, 8, 64, 64, 63);
+    gr.addColorStop(0, "rgba(20,20,22,0)"); gr.addColorStop(0.2, "rgba(20,20,22,0.3)"); gr.addColorStop(0.92, "rgba(20,20,22,0.2)"); gr.addColorStop(1, "rgba(20,20,22,0)");
+    g.fillStyle = gr; g.beginPath(); g.arc(64, 64, 63, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "rgba(8,8,9,0.4)";
+    for (const a0 of [0, Math.PI]) { g.beginPath(); g.moveTo(64, 64); g.arc(64, 64, 61, a0, a0 + 0.45); g.closePath(); g.fill(); }
+    return (rotorTex = new THREE.CanvasTexture(cv));
+  }
+  function buildAirDrone() {                        // matte black, four guarded rotors, one red eye in the nose (faces +z)
+    const g = new THREE.Group(), body = new THREE.Group(), rotors = [];
+    const skin = std("#18191b", { roughness: 0.5, metalness: 0.35 }), trim = std("#0b0b0c", { roughness: 0.35, metalness: 0.6 });
+    const hull = new THREE.Mesh(new THREE.SphereGeometry(0.5, 28, 18), skin); hull.scale.set(0.55, 0.26, 0.85); body.add(hull);
+    const spine = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.56), trim); spine.position.set(0, 0.13, -0.06); body.add(spine);
+    for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.8), skin);
+      arm.position.set(sx * 0.29, 0.02, sz * 0.29); arm.rotation.y = Math.atan2(sx, sz); body.add(arm);
+      const mx = sx * 0.58, mz = sz * 0.58;
+      const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.1, 14), trim); motor.position.set(mx, 0.06, mz); body.add(motor);
+      const guard = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.016, 6, 32), skin); guard.rotation.x = Math.PI / 2; guard.position.set(mx, 0.11, mz); body.add(guard);
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(0.32, 32), new THREE.MeshBasicMaterial({ map: rotorTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+      disc.rotation.x = -Math.PI / 2; disc.position.set(mx, 0.125, mz); body.add(disc); rotors.push(disc);
+    }
+    const socket = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.135, 0.09, 20), trim);
+    socket.rotation.x = Math.PI / 2; socket.position.set(0, 0.0, 0.405); body.add(socket);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.075, 18, 12), new THREE.MeshBasicMaterial({ color: lin("#ff1a1a") }));
+    eye.position.set(0, 0, 0.445); body.add(eye);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xff2414, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    glow.scale.set(0.95, 0.95, 1); glow.position.set(0, 0, 0.5); body.add(glow);
+    for (const sx of [-1, 1]) {
+      const skid = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.72, 8), trim); skid.rotation.x = Math.PI / 2; skid.position.set(sx * 0.21, -0.22, 0); body.add(skid);
+      for (const sz of [-0.2, 0.2]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.16, 6), trim); leg.position.set(sx * 0.19, -0.14, sz); leg.rotation.z = sx * 0.3; body.add(leg); }
+    }
+    body.traverse(o => { if (o.isMesh && o.material !== eye.material && !rotors.includes(o)) o.castShadow = true; });
+    g.add(body); g.scale.setScalar(1.3); g.visible = false; scene.add(g);
+    return { group: g, body, rotors, glow };
+  }
+  air.drone = buildAirDrone();
+  const sightMat = new THREE.MeshBasicMaterial({ color: lin("#ff2b1a"), transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
+  function buildTowers() {                          // a steel watchtower on each tower cell, its searchlight at eye height, its reach on the ground
+    if (air.towers) { scene.remove(air.towers); disposeTree(air.towers); }
+    const g = new THREE.Group(), steel = std("#2c2622", { roughness: 0.7, metalness: 0.4 }), hutM = std("#3d332b", { roughness: 0.85 }), roofM = std("#231f1d", { roughness: 0.8 });
+    air.list = [];
+    airspace.towers.forEach(([r, c], n) => {
+      const x = toX(c), z = toZ(r), t = new THREE.Group();
+      t.position.set(x, H[r * C + c], z);
+      for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.11, 4.6, 0.11), steel);
+        leg.position.set(sx * 0.72, 2.25, sz * 0.72); leg.rotation.set(sz * 0.07, 0, -sx * 0.07); t.add(leg);
+      }
+      for (const yb of [1.4, 2.9]) for (const [ax, az, ry] of [[0, 0.74, 0], [0, -0.74, 0], [0.74, 0, Math.PI / 2], [-0.74, 0, Math.PI / 2]]) {
+        const brace = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.06, 0.06), steel); brace.position.set(ax, yb, az); brace.rotation.y = ry; t.add(brace);
+      }
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.12, 1.75), steel); deck.position.y = 4.5; t.add(deck);
+      const hut = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.85, 1.25), hutM); hut.position.y = 4.98; t.add(hut);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(1.08, 0.5, 4), roofM); roof.position.y = 5.65; roof.rotation.y = Math.PI / 4; t.add(roof);
+      const head = new THREE.Group(); head.position.y = AIRC.eye; t.add(head);
+      const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.21, 0.36, 12), steel); lamp.rotation.x = Math.PI / 2; head.add(lamp);
+      const lensM = new THREE.MeshBasicMaterial({ color: lin("#ff6a4a") });
+      const lens = new THREE.Mesh(new THREE.CircleGeometry(0.16, 16), lensM); lens.position.z = 0.19; head.add(lens);
+      const beamGeo = new THREE.ConeGeometry(2.6, 13, 24, 1, true); beamGeo.rotateX(-Math.PI / 2); beamGeo.translate(0, 0, 6.5);   // apex at the lamp
+      const beamM = new THREE.MeshBasicMaterial({ color: lin("#ff3b2b"), transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+      head.add(new THREE.Mesh(beamGeo, beamM));
+      t.traverse(o => { if (o.isMesh && o.material !== beamM && o.material !== lensM) { o.castShadow = true; o.receiveShadow = true; } });
+      const ring = groundRing(x, z, AIRC.sight - 0.22, AIRC.sight + 0.22, "#ff4d3d", 0.5);
+      const line = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1, 6, 1, true), sightMat); line.visible = false; line.renderOrder = 7;
+      g.add(t, ring, line);
+      air.list.push({ head, beamM, lensM, line, r, c, eye: airspace.eyes[n], phase: n * 1.9 });
+    });
+    scene.add(g);
+    air.towers = g;
+    g.visible = air.on;
+  }
+  function threatTexture() {                        // per cell: 2 seen even at the lowest flight level, 1 seen only higher, 0 unseen
+    const N = R * C, L = AIRC.levels, a = airspace;
+    return cellTexture(d => {
+      for (let i = 0; i < N; i++) {
+        let k0 = -1, any = 0;
+        for (let k = 0; k < L; k++) if (a.free[k * N + i]) { if (k0 < 0) k0 = k; if (a.seen[k * N + i]) any = 1; }
+        d[i * 4] = k0 >= 0 && a.seen[k0 * N + i] ? 2 : any;
+      }
+    });
+  }
+  function airReady() {                             // this map's airspace, towers and coverage, built once per map
+    if (airspace && airspace.map === MAP) return;
+    buildAirspace(); buildTowers();
+    if (air.threat) air.threat.dispose();
+    air.threat = threatTexture();
+  }
+  function airRoute(start, goal, stealth) {         // a flight, as a route the board and the rover machinery understand
+    const f = airFly(start, goal, stealth), N = R * C, key = stealth ? "stealth" : "direct";
+    const rt = { key, name: stealth ? "Stealth A*" : "Direct A*", color: AIR_COLORS[key], air: true, found: f.found, nodes: f.nodes,
+                 ms: f.ms, peak: 0, explored: [], voxels: f.voxels };
+    if (!f.found) return Object.assign(rt, { cost: Infinity, idx: [], cells: [], stats: null, seenS: Infinity });
+    const idx = [], pts = [], stepT = [0];
+    let secs = 0, seenS = 0, dist = 0, climb = 0, topH = 0;
+    f.voxels.forEach((v, n) => {
+      const k = Math.floor(v / N), i = v - k * N, r = (i / C) | 0, c = i - r * C;
+      idx.push(i); pts.push(new THREE.Vector3(toX(c), airspace.alt[k], toZ(r)));
+      topH = Math.max(topH, airspace.alt[k] - airspace.top[i]);
+      if (!n) return;
+      const u = f.voxels[n - 1], ku = Math.floor(u / N), iu = u - ku * N, ru = (iu / C) | 0, cu = iu - ru * C;
+      const mt = airMoveTime(r - ru, c - cu, k - ku), hh = r !== ru && c !== cu ? Math.SQRT2 : (r !== ru || c !== cu ? 1 : 0), dy = (k - ku) * AIRC.dz;
+      stepT.push(mt); secs += mt; if (airspace.seen[v]) seenS += mt;
+      dist += Math.sqrt(hh * hh + dy * dy); climb += Math.max(dy, 0);
+    });
+    return Object.assign(rt, { cost: secs, objective: f.cost, idx, cells: idx.map(i => [(i / C) | 0, i % C]), pts, stepT, seenS,
+                               stats: { distance_m: dist, climb_m: climb, rough_m: 0, top_m: topH } });
+  }
+  const planPair = (s, g) => (air.on ? [airRoute(s, g, true), airRoute(s, g, false)] : runPlanners(s, g));
+  function buildCurtain() {                         // thin lines from the route down to the ground: how high it flies
+    if (air.curtain) { scene.remove(air.curtain); air.curtain.geometry.dispose(); air.curtain.material.dispose(); air.curtain = null; }
+    air.curtainOf = current;
+    if (!air.on || !current || !current.air || !current.found) return;
+    const v = [];
+    current.pts.forEach((p, k) => { if (k % 2 === 0) { const i = current.idx[k]; v.push(p.x, p.y, p.z, p.x, airspace.top[i] - (OBS[i] === 2 ? AIRC.tree : OBS[i] === 1 ? AIRC.rock : 0) + 0.05, p.z); } });
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(v, 3));
+    const m = new THREE.LineBasicMaterial({ color: lin(current.color), transparent: true, opacity: 0.4, depthWrite: false });
+    air.curtain = new THREE.LineSegments(g, m); air.curtain.renderOrder = 3; scene.add(air.curtain);
+  }
+  function airShow() {                              // towers, coverage, the drone and the curtain follow the mode
+    rover.group.visible = !air.on;
+    air.drone.group.visible = air.on;
+    if (air.towers) air.towers.visible = air.on;
+    OVER.uThreatOn.value = air.on && air.threat ? 1 : 0;
+    OVER.uThreat.value = air.threat;
+    if (air.curtainOf !== current || (!air.on && air.curtain)) buildCurtain();
+  }
+  const GLAB = [...document.querySelectorAll("#tele .g > span")];   // the gauges' labels (not the numbers inside them)
+  const GROUND_LABELS = GLAB.map(e => e.textContent), AIR_LABELS = ["Route", "Time", "Flown", "Height", "Climb", "Sight"];
+  const NOTE_GROUND = document.querySelector("#board .note").textContent;
+  const NOTE_AIR = "Flight time at 5 m/s. Seen: seconds inside a watchtower's line of sight. The stealth route pays 10 s for every second seen, so it hides behind hills when it can. On the ground: red, the towers see even a low flight; amber, flying low hides you.";
+  function setAir(on, keepView) {
+    if (on === air.on) return;
+    stopReplay(); if (plan.mode) exitPlan();
+    air.on = on;
+    airBtn.setAttribute("aria-pressed", String(on)); airBtn.textContent = on ? "■ Ground" : "✈ Air";
+    if (on) airReady();
+    ["t-watch", "t-short", "t-search"].forEach(id => { $(id).hidden = on; });
+    $("pb-draw").hidden = on;
+    GLAB.forEach((e, k) => { e.textContent = (on ? AIR_LABELS : GROUND_LABELS)[k]; });
+    $("key-rover").textContent = on ? "Drone" : "Rover"; $("key-cam").textContent = on ? "Camera" : "Drone";
+    document.querySelector("#board .note").textContent = on ? NOTE_AIR : NOTE_GROUND;
+    document.querySelector("#board-table thead th:nth-child(4)").textContent = on ? "Seen s" : "Climb m";
+    if (!parked) {
+      const ranked = installPair(START, GOAL, planPair(START, GOAL));
+      playing = true; syncPlay();
+      select(bestPlanner(ranked).name, false);
+      drawMapLayer();
+    } else parkRover();
+    airShow();
+    if (!keepView) setMode(on && !parked ? "chase" : mode === "replay" ? "course" : mode);
+  }
+  function whoSees(vox) {                           // the towers that see a voxel
+    const N = R * C, k = Math.floor(vox / N), i = vox - k * N, r = (i / C) | 0, c = i - r * C, out = [];
+    if (!airspace.seen[vox]) return out;
+    air.list.forEach((tw, n) => {
+      const dr = r - tw.r, dc = c - tw.c, dy = airspace.alt[k] - tw.eye;
+      if ((dr * dr + dc * dc) + dy * dy <= AIRC.sight * AIRC.sight && (dr || dc) && lineOfSight(airspace.top, tw.r, tw.c, tw.eye, r, c, airspace.alt[k])) out.push(n);
+    });
+    return out;
+  }
+  const lookV = new THREE.Vector3(), upY = new THREE.Vector3(0, 1, 0);
+  function airTick(dt, t, v, P, T) {                // per frame in air mode: fly, bank, spin, and who's watching
+    const d = air.drone, landed = !!current.park, x = P.x, z = P.z;
+    const y = landed ? groundH(x, z) + 0.36 : P.y + 0.06 * Math.sin(t * 2.3);
+    d.group.position.set(x, y, z);
+    const yaw = Math.atan2(T.x, T.z), dyaw = wrapPi(yaw - air.yaw);
+    if (snap) air.yaw = yaw; else air.yaw += dyaw * (1 - Math.exp(-dt * 5));
+    const turn = dt > 0 ? wrapPi(yaw - air.yaw) / Math.max(dt, 1e-3) : 0;
+    air.roll += (clamp(-turn * 0.08, -0.5, 0.5) - air.roll) * (1 - Math.exp(-dt * 3));
+    const pitch = landed ? 0 : clamp(v * 0.05, 0, 0.25) - clamp(T.y, -0.6, 0.6) * 0.5;
+    d.group.rotation.set(pitch, air.yaw, landed ? 0 : air.roll, "YXZ");
+    d.rotors.forEach((r, i) => { r.rotation.z += dt * (landed ? 0 : 38) * (i % 2 ? 1 : -1); });
+    d.glow.scale.setScalar(0.85 + 0.18 * Math.sin(t * 4.2));
+    roverSpot.value.set(x, y, z);
+    let watchers = [];
+    if (!landed && current.voxels) {
+      const tA = current.tAt, last = tA.length - 1;
+      let k = 0, hi = last;
+      while (k < hi) { const mid = (k + hi + 1) >> 1; if (tA[mid] <= simT) k = mid; else hi = mid - 1; }
+      watchers = whoSees(current.voxels[k]);
+    }
+    air.seenNow = watchers.length > 0;
+    air.list.forEach((tw, n) => {
+      const on = watchers.includes(n), hx = toX(tw.c), hz = toZ(tw.r);
+      if (on) {
+        tw.head.lookAt(lookV.set(x, y, z));
+        lookV.set(hx, tw.eye, hz);
+        const len = lookV.distanceTo(d.group.position);
+        tw.line.position.copy(lookV).add(d.group.position).multiplyScalar(0.5);
+        tw.line.quaternion.setFromUnitVectors(upY, lookV.sub(d.group.position).normalize());
+        tw.line.scale.set(1, len, 1);
+      } else tw.head.rotation.set(0.3, tw.phase + t * 0.45, 0);
+      tw.line.visible = on;
+      tw.beamM.opacity = on ? 0.22 : 0.07;
+      tw.lensM.color.setRGB(on ? 1 : 1, on ? 0.12 : 0.32, on ? 0.08 : 0.2);
+    });
+  }
+  const airBtn = document.createElement("button");   // placed beside the map buttons once they exist (switching maps)
 
   // ---------------------------------------------------------------- controls
   const modeBtns = [...document.querySelectorAll("[data-mode]")];
@@ -2578,7 +3531,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     if (why) { say(why, "bad"); refreshPlanUI(); return false; }
     const s = kind === "start" ? cell : plan.start, f = kind === "finish" ? cell : plan.finish;
     if (s && f) {
-      const res = runPlanners(s, f);
+      const res = planPair(s, f);
       if (!res.some(r => r.found)) {                // can't happen on one connected map, but never install a dead pair
         say(`No drivable route between ${fmtCell(s)} and ${fmtCell(f)}: steep slopes or water cut them apart. Move one of them.`, "bad");
         refreshPlanUI(); return false;
@@ -2613,8 +3566,8 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   }
   PB.swap.onclick = () => {                         // the reverse trip: uphill becomes downhill, so the times change
     if (!plan.start || !plan.finish) return;
-    const s = plan.finish, f = plan.start, before = Math.min(...routes.filter(r => r.found && !r.user && r.key !== "short").map(r => r.cost));
-    const res = runPlanners(s, f);
+    const s = plan.finish, f = plan.start, before = Math.min(...planners().map(r => r.cost));
+    const res = planPair(s, f);
     if (!res.some(r => r.found)) { say("No drivable route the other way round.", "bad"); return; }
     commitPair(s, f, res, `Swapped (the other way took ${fmtTime(before)}). `);
     refreshPlanUI();
@@ -2872,16 +3825,17 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   function clearHover() { hoverEv = null; hoverKey = ""; cursorRing.hide(); PB.cursor.textContent = ""; if (!plan.drag) cvs.style.cursor = ""; }
   cvs.addEventListener("pointerdown", ev => {
     pointers.add(ev.pointerId);
-    tap = plan.mode && !plan.drag && pointers.size === 1 ? { x: ev.clientX, y: ev.clientY, id: ev.pointerId } : null;
+    tap = (plan.mode || senseView.arming) && !plan.drag && pointers.size === 1 ? { x: ev.clientX, y: ev.clientY, id: ev.pointerId } : null;
   });
   const pointerEnd = ev => {
     pointers.delete(ev.pointerId);
     if (plan.drag && ev.pointerId === plan.drag.id) { endDrag(ev.type); return; }
     if (!tap || tap.id !== ev.pointerId) return;
     const t0 = tap; tap = null;
-    if (!plan.mode || ev.type !== "pointerup" || Math.hypot(ev.clientX - t0.x, ev.clientY - t0.y) > 6) return;
+    if ((!plan.mode && !senseView.arming) || ev.type !== "pointerup" || Math.hypot(ev.clientX - t0.x, ev.clientY - t0.y) > 6) return;
     const cell = cellAt(ev);
     if (!cell) return;
+    if (!plan.mode) { if (sensing()) dropBlock(cell); return; }
     if (plan.mode === "pick") {
       placeMarker(plan.slot, cell);
       hoverKey = "";
@@ -2892,6 +3846,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   cvs.addEventListener("pointercancel", pointerEnd);
   cvs.addEventListener("pointermove", ev => {
     if (plan.drag && ev.pointerId === plan.drag.id) { dragMove(ev); return; }
+    if (senseView.arming && !plan.mode) cvs.style.cursor = "crosshair";
     if (plan.mode && ev.pointerType === "mouse" && !ev.buttons) hoverEv = ev;
   });
   cvs.addEventListener("pointerleave", () => {
@@ -2901,6 +3856,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
 
   function enterPlan() {
     if (plan.mode) return;
+    stopReplay(); if (senseView.arming) armBlock(false);
     showPaths(false);
     Object.assign(plan, { mode: "pick", start: START ? START.slice() : null, finish: GOAL ? GOAL.slice() : null, slot: "start", drag: null,
                           prevMode: mode, prevPlaying: playing, boardOpen: $("board").open });
@@ -2996,7 +3952,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
       const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal");
       for (const [lod, radius] of [["near", focus ? 0.16 : 0.12], ["far", focus ? 0.32 : 0.2]]) {   // thin up close, thicker far away
         const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, pts.length * 2, radius, RADIAL, false), mat);
-        tube.userData.lod = lod; tube.renderOrder = focus ? 4.2 : 4;
+        tube.userData.lod = lod; tube.userData.focus = focus; tube.renderOrder = focus ? 4.2 : 4;
         tube.visible = lod === (farView ? "far" : "near");
         extraGroup.add(tube);
       }
@@ -3045,7 +4001,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   function drivePreset(i, ride) {                   // send the rover along preset i (adding its line); ride = follow it with the drone
     const p = MAP.presets[i];
     extraOn.add(i);
-    const ranked = installPair(p.start, p.goal, runPlanners(p.start, p.goal));
+    const ranked = installPair(p.start, p.goal, planPair(p.start, p.goal));
     playing = true; syncPlay();
     select(bestPlanner(ranked).name, false);
     drawMapLayer(); saveState(); renderPathsList();
@@ -3085,12 +4041,15 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   });
   const tourBtn = document.createElement("button");
   tourBtn.className = "tour-btn"; tourBtn.id = "tour-btn"; tourBtn.setAttribute("aria-pressed", "false"); tourBtn.textContent = "▶ Tour";
-  tourBtn.title = "A guided one-minute run through all three maps. Touch anything to take over.";
+  tourBtn.title = "A guided run through all three maps, under two minutes. Touch anything to take over.";
   $("maps").appendChild(tourBtn);
   function loadMap(i, intro) {
     if (plan.mode) exitPlan();
+    stopReplay(); if (senseView.arming) armBlock(false);
+    sensor.blocks = []; senseClear(); buildBlocks();  // roadblocks belong to a trip on this map: none on the next one
     mapIdx = i; MAP = SCENE.maps[i]; THEME = THEMES[MAP.key];
     R = MAP.rows; C = MAP.cols; H = MAP.heights; SURF = MAP.surface; OBS = MAP.obstacle;
+    OVER.uGrid.value.set(C, R);
     SCOST = MAP.surfaces.map(s => s.cost);
     hMin = Infinity; hMax = -Infinity;
     for (const h of H) { if (h < hMin) hMin = h; if (h > hMax) hMax = h; }
@@ -3112,12 +4071,13 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     // no default route: the map opens empty, unless this browser saved paths or a route for it
     home = homeCell();
     paintBase();
+    if (air.on) airReady();
     const saved = loadState();
     extraOn = new Set(((saved && saved.extras) || []).filter(k => Number.isInteger(k) && k >= 0 && k < MAP.presets.length));
     const pair = saved && Array.isArray(saved.pair) ? saved.pair : null;
     let res = null;
     if (pair && validCell(pair[0]) && validCell(pair[1]) && !sameCell(pair[0], pair[1])) {
-      res = runPlanners(pair[0], pair[1]);
+      res = planPair(pair[0], pair[1]);
       if (!res.some(r => r.found)) res = null;
     }
     if (res) {
@@ -3140,9 +4100,10 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   }
 
   // ---------------------------------------------------------------- the tour: the viewer shows itself off
-  // One press (or #tour in the address) plays a guided loop for showing the project to someone: each map flies in,
-  // five planners race that map's showcase path, the drone and then the chase camera follow the rover, and the
-  // overview lays every planner's route side by side, with a caption saying what's going on. It runs on the frame
+  // One press (or #tour in the address) plays a guided loop for showing the project to someone: each map flies in and
+  // five planners race that map's showcase path; then the desert watches Dijkstra and A* search side by side, the
+  // island drives with a 5 m sensor and meets a roadblock, and on the grassland the drone flies the air route out of
+  // the watchtowers' sight; the overview lays every route side by side, with a caption saying what's going on. It runs on the frame
   // clock, so it pauses with the page. Touching anything hands control back; the tour leaves no saved paths behind.
   const TOUR_MAPS = ["desert", "island", "grassland"].filter(k => SCENE.maps.some(m => m.key === k));
   let tour = null;                                  // { k: which map of TOUR_MAPS, t: seconds into its act, step }
@@ -3150,43 +4111,95 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   function tourSay(step, html) { $("tour-step").textContent = step; $("tour-text").innerHTML = html; }
   function raceNumbers() {                          // what the stage board shows, in a sentence's worth of numbers
     const by = k => routes.find(r => r.key === k && r.found);
-    const quick = routes.filter(r => r.found && !r.user && r.key !== "short").sort((a, b) => a.cost - b.cost)[0];
+    const quick = planners().sort((a, b) => a.cost - b.cost)[0];
     return { quick, short: by("short"), astar: by("astar"), wastar: by("wastar"), greedy: by("greedy") };
   }
   const pct = (a, b) => `${Math.round((a / b - 1) * 100)}%`;
-  const TOUR_STEPS = [                              // [seconds into a map's act, what happens]
-    [0, () => {
+  // Each map's act shows something different: the desert watches Dijkstra and A* search side by side, the island
+  // drives with a 5 m sensor (D* Lite) and meets a roadblock, the grassland follows the race with the drone and the
+  // chase camera. [seconds into the act, what happens]
+  const TOUR_DO = {
+    intro() {
+      setAir(false, true);
       const key = TOUR_MAPS[tour.k], i = SCENE.maps.findIndex(m => m.key === key), name = SCENE.maps[i].name;
       tourSay(`Tour · ${name} · ${tour.k + 1} of ${TOUR_MAPS.length}`, `<b>${name}.</b> ${THEMES[key].tour.intro}`);
       if (showAll) $("t-routes").click();           // one route at a time to start with
       loadMap(i, true);
-    }],
-    [3.4, () => {
+    },
+    race() {
       const p = MAP.presets[THEME.tour.path];
       drivePreset(THEME.tour.path, false);
       const n = raceNumbers();
       tourSay(`Tour · ${MAP.name} · path P${THEME.tour.path + 1}, ${p.name}`,
         `Five planners race the same trip. <b>${n.quick.name}</b> is quickest at <b>${fmtTime(n.quick.cost)}</b>; the shortest route ignores the hills and takes ${fmtTime(n.short.cost)}.`);
-    }],
-    [8, () => {
+    },
+    search() {
+      RP.speed.value = 4; RP.speed.dispatchEvent(new Event("input"));   // 2×: the longer search takes about 6 s
+      startReplay(["dijkstra", "astar"]);
+      tourSay(`Tour · ${MAP.name} · watch the search`, `Dijkstra and A* look for the same route, one cell per tick each. A* also weighs the distance still to go, so it heads for the finish.`);
+    },
+    searchDone() {
+      const d = routes.find(r => r.key === "dijkstra"), a = routes.find(r => r.key === "astar");
+      if (d && a) tourSay(`Tour · ${MAP.name} · watch the search`, `Same quickest route, <b>${fmtTime(a.cost)}</b>, but A* searched <b>${(d.nodes / a.nodes).toFixed(1)}× fewer cells</b> than Dijkstra.`);
+    },
+    drone() {
+      stopReplay();
       setMode("drone");
       tourSay(`Tour · ${MAP.name} · drone camera`, `The drone follows the rover. It drives by the planners' clock: slower on ${THEME.tour.slow} and on climbs.`);
-    }],
-    [18.5, () => {
+    },
+    chase() {
       setMode("chase");
       tourSay(`Tour · ${MAP.name} · chase camera`, `The same drive from just behind the rover. Green ring: where it's heading next.`);
-    }],
-    [24, () => {
+    },
+    sensor() {
+      if (sensor.range !== 5) SN.ranges.find(b => b.dataset.range === "5").click();
+      const rt = routes.find(r => r.key === DSTAR.key && r.found);
+      if (!rt) return;
+      select(rt.name, false); playing = true; syncPlay();
+      setMode("drone");
+      tourSay(`Tour · ${MAP.name} · D* Lite, 5 m sensor`, `Now the rover sees only 5 m around it. Dimmed ground is unseen and assumed flat and open, so its plan (dashed) is a guess that D* Lite repairs as it learns.`);
+    },
+    roadblock() {
+      if (!sensing()) return;
+      const k = Math.max(0, senseView.step), way = current.idx;
+      for (let j = k + 14; j < way.length - 4; j++) {   // a little way ahead, where it is about to drive
+        const i = way[j];
+        if (!blockWhy([(i / C) | 0, i % C])) { dropBlock([(i / C) | 0, i % C]); break; }
+      }
+      tourSay(`Tour · ${MAP.name} · a roadblock`, `A tank trap appears in its path. The rover finds it when it comes within 5 m, and D* Lite re-plans round it.`);
+    },
+    sensorChase() {
+      setMode("chase");
+      tourSay(`Tour · ${MAP.name} · D* Lite, 5 m sensor`, `Red: a plan that just broke. D* Lite repairs only what the new ground changed, instead of planning again from scratch.`);
+    },
+    overview() {
+      stopReplay();
       setMode("course");
       if (!showAll) $("t-routes").click();
-      const n = raceNumbers();
-      const lines = [];
+      const n = raceNumbers(), lines = [], ds = routes.find(r => r.key === DSTAR.key && r.found);
+      if (ds && n.astar && current === ds) lines.push(`seeing only 5 m, D* Lite took <b>${pct(ds.cost, n.astar.cost)}</b> longer than A* with the whole map`);
       if (n.greedy) lines.push(`Greedy rushes at the goal and takes <b>${pct(n.greedy.cost, n.quick.cost)}</b> longer`);
       if (n.wastar && n.astar) lines.push(`Weighted A* searches <b>${Math.max(1, Math.round(n.astar.nodes / n.wastar.nodes))}×</b> fewer cells than A* for ${pct(n.wastar.cost, n.astar.cost)} more time`);
-      tourSay(`Tour · ${MAP.name} · every planner`, `Every planner's route, side by side. ${lines.join("; ")}.`);
-    }],
-    [31, () => { tour.k = (tour.k + 1) % TOUR_MAPS.length; tour.t = -1e-9; tour.step = 0; }],   // on to the next map
-  ];
+      tourSay(`Tour · ${MAP.name} · every planner`, `Every planner's route, side by side: ${lines.slice(0, 2).join("; ")}.`);
+    },
+    air() {
+      setAir(true, true);
+      setMode("chase");
+      tourSay(`Tour · ${MAP.name} · the air route`, `Now a drone with one red eye flies the same trip. The watchtowers see ${AIRC.sight} m, but not through hills, so the stealth route flies low behind them. A red line: a tower that sees it.`);
+    },
+    airOverview() {
+      setMode("course");
+      if (!showAll) $("t-routes").click();
+      const st = routes.find(r => r.key === "stealth" && r.found), di = routes.find(r => r.key === "direct" && r.found);
+      if (st && di) tourSay(`Tour · ${MAP.name} · stealth vs direct`, `The stealth flight is seen for <b>${st.seenS.toFixed(1)} s</b>, the direct one for ${di.seenS.toFixed(1)} s, at the price of <b>${pct(st.cost, di.cost)}</b> more flight time. Red ground: the towers see even a low flight.`);
+    },
+    next() { tour.k = (tour.k + 1) % TOUR_MAPS.length; tour.t = -1e-9; tour.step = 0; },   // on to the next map
+  };
+  const TOUR_ACTS = {
+    desert:    [[0, "intro"], [3.4, "race"], [7.5, "search"], [15.5, "searchDone"], [20, "drone"], [28, "overview"], [35, "next"]],
+    island:    [[0, "intro"], [3.4, "race"], [7.5, "sensor"], [13, "roadblock"], [21, "sensorChase"], [28, "overview"], [35, "next"]],
+    grassland: [[0, "intro"], [3.4, "race"], [8, "drone"], [14, "air"], [27, "airOverview"], [34, "next"]],
+  };
   function startTour(fromMap) {
     if (plan.mode) exitPlan();
     if (!pathsPanel.hidden) showPaths(false);
@@ -3206,17 +4219,163 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   }
   function tourTick(dt) {
     tour.t += dt;
-    while (tour && tour.step < TOUR_STEPS.length && tour.t >= TOUR_STEPS[tour.step][0]) {
-      const run = TOUR_STEPS[tour.step][1]; tour.step++; run();
+    for (let steps = TOUR_ACTS[TOUR_MAPS[tour.k]]; tour && tour.step < steps.length && tour.t >= steps[tour.step][0]; steps = TOUR_ACTS[TOUR_MAPS[tour.k]]) {
+      const run = TOUR_DO[steps[tour.step][1]]; tour.step++; run();
     }
   }
   tourBtn.onclick = () => (tour ? stopTour() : startTour(MAP && MAP.key));
+  airBtn.className = "air-btn"; airBtn.id = "air-btn"; airBtn.setAttribute("aria-pressed", "false"); airBtn.textContent = "✈ Air";
+  airBtn.title = "Air route: a drone with one red eye flies to the finish out of the watchtowers' sight";
+  $("maps").insertBefore(airBtn, tourBtn);
+  airBtn.onclick = () => setAir(!air.on);
   $("tour-stop").onclick = stopTour;
   // anything you do takes over from the tour (the tour's own buttons excepted); the press itself still counts
   const takeOver = ev => { if (tour && !(ev.target.closest && ev.target.closest("#tour-btn, #tour-stop"))) stopTour(); };
   addEventListener("pointerdown", takeOver, true);
   addEventListener("wheel", takeOver, { capture: true, passive: true });
   addEventListener("keydown", ev => { if (tour && !["Shift", "Control", "Alt", "Meta"].includes(ev.key)) takeOver(ev); }, true);
+
+  // ---------------------------------------------------------------- watch the search: two planners side by side
+  // The screen splits in two (one above the other on a phone) and both planners search again from the start, one cell
+  // per tick each, so the lit area is the work each has done; the bright edge is the frontier, the cells queued to be
+  // searched next. A planner that reaches the finish traces its route back from the finish to the start. Both halves
+  // show the same camera, so dragging turns both.
+  const RP = { bar: $("replaybar"), cap: $("rp-cap"), left: $("rp-left"), right: $("rp-right"), play: $("rp-play"),
+               speed: $("rp-speed"), speedVal: $("rp-speed-val"), labels: $("rp-labels"), lab: [$("rp-l0"), $("rp-l1")], split: $("rp-split") };
+  const RP_KEYS = ["astar", "dijkstra", "wastar", "greedy", "bfs"];
+  const RP_WHY = { astar: "A* adds the straight-line distance still to go, so it searches toward the finish.",
+                   wastar: "Weighted A* counts that distance twice: far less searching for a slightly slower route.",
+                   greedy: "Greedy looks only at the distance still to go, so it rushes and pays for it.",
+                   bfs: "BFS counts moves, not seconds, so the hills don't slow its search, or help its route.", dijkstra: "" };
+  const replay = { on: false, keys: ["dijkstra", "astar"], sides: [], step: 0, rate: 1, playing: true, prev: null, hudT: 1 };
+  [RP.left, RP.right].forEach(sel => { sel.innerHTML = RP_KEYS.map(k => `<option value="${k}">${PLANNERS.find(p => p.key === k).name}</option>`).join(""); });
+  const rpMult = () => Math.pow(2, +RP.speed.value - 3);
+  const HIDE_FOR_REPLAY = ["title-board", "board", "drone", "tele", "paths", "sense"];   // (the tour's caption and the benchmark stay)
+  const splitAcross = () => stage.clientWidth >= stage.clientHeight;   // side by side, or one above the other
+  function replayPose() {                           // look at the start, the finish and everything both will search
+    let r0 = R, r1 = 0, c0 = C, c1 = 0;
+    const add = i => { const r = (i / C) | 0, c = i - r * C; if (r < r0) r0 = r; if (r > r1) r1 = r; if (c < c0) c0 = c; if (c > c1) c1 = c; };
+    replay.sides.forEach(sd => sd.rt.explored.forEach(add));
+    add(START[0] * C + START[1]); add(GOAL[0] * C + GOAL[1]);
+    const W = stage.clientWidth, Hh = stage.clientHeight, aspect = splitAcross() ? W / 2 / Hh : W / (Hh / 2);
+    const half = THREE.MathUtils.degToRad(camera.fov) / 2, fit = Math.min(half, Math.atan(Math.tan(half) * aspect));
+    const radius = 0.5 * Math.hypot(c1 - c0 + 6, r1 - r0 + 6), dx = GOAL[1] - START[1], dz = GOAL[0] - START[0];
+    return { target: new THREE.Vector3(toX((c0 + c1) / 2), courseCenter.y, toZ((r0 + r1) / 2)),
+             dist: clamp(radius / Math.sin(fit) * 1.0, 20, 320), phi: 0.6, theta: Math.atan2(-dx, -dz) };   // the finish up the screen
+  }
+  function startReplay(keys) {
+    if (parked || !START) return false;
+    if (plan.mode) exitPlan();
+    if (keys) replay.keys = keys.slice();
+    const sides = replay.keys.map(k => routes.find(r => r.key === k && r.explored && r.explored.length));
+    if (sides.some(s => !s)) return false;
+    RP.left.value = replay.keys[0]; RP.right.value = replay.keys[1];
+    if (!replay.on) {
+      replay.prev = { mode, playing, hidden: HIDE_FOR_REPLAY.map(id => [id, $(id).hidden]) };
+      HIDE_FOR_REPLAY.forEach(id => { $(id).hidden = true; });
+    }
+    replay.on = true;
+    replay.sides.forEach(sd => dropLine(sd.line));
+    replay.sides = sides.map(rt => ({ rt, done: false, reveal: 0, line: null }));
+    replay.step = 0; replay.playing = true; replay.hudT = 1;
+    replay.rate = Math.max(40, Math.max(...sides.map(rt => rt.nodes)) / 11);   // the longer search takes about 11 s at 1×
+    playing = false; syncPlay(); restartLap(false);  // the rover waits at the start
+    RP.bar.hidden = false; RP.labels.hidden = false; RP.play.textContent = "Pause";
+    Object.assign(MODES.replay, replayPose());
+    const w = clamp(MODES.replay.dist * 0.0045, 0.22, 1.1);   // a line that reads from where the camera is
+    replay.sides.forEach(sd => { if (sd.rt.found) { sd.line = planLine(sd.rt.idx, "#ffffff", w, true); sd.line.visible = false; } });
+    setMode("replay"); easeView(-1);
+    refreshLayers(); replayHUD();
+    return true;
+  }
+  function stopReplay() {
+    if (!replay.on) return;
+    replay.on = false;
+    RP.bar.hidden = true; RP.labels.hidden = true;
+    replay.prev.hidden.forEach(([id, h]) => { $(id).hidden = h; });
+    replay.sides.forEach(sd => { sd.line = dropLine(sd.line); });
+    OVER.uSearchP.value.y = 0;
+    refreshLayers();
+    playing = replay.prev.playing && !parked; syncPlay();
+    const back = replay.prev.mode;
+    setMode(MODES[back] && back !== "replay" && back !== "plan" ? back : "course");
+    viewFit = computeOverviewFit();
+  }
+  function replayTick(dt) {
+    if (replay.playing) replay.step += dt * replay.rate * rpMult();
+    let all = true;
+    for (const sd of replay.sides) {
+      if (!sd.done && replay.step >= sd.rt.nodes) sd.done = true;
+      if (sd.done && sd.reveal < 1) sd.reveal = Math.min(1, sd.reveal + dt / 1.3);   // the route traces back, finish to start
+      if (!sd.done || sd.reveal < 1) all = false;
+      if (sd.line) sd.line.geometry.setDrawRange(Math.floor((1 - ease(sd.reveal)) * sd.line.userData.segs) * RADIAL * 6, Infinity);
+    }
+    if (all && replay.playing) { replay.playing = false; RP.play.textContent = "Replay"; replayHUD(); }
+    if ((replay.hudT += dt) > 0.08) { replay.hudT = 0; replayHUD(); }
+  }
+  function replayCaption() {
+    const [a, b] = replay.sides, done = replay.sides.filter(s => s.done);
+    if (!done.length) return "Both search from the start, one cell per tick each, so the lit area is the work each has done. The bright edge is the frontier: cells queued to be searched next.";
+    if (done.length === 1 && a.rt !== b.rt) {
+      const d = done[0].rt, o = replay.sides.find(s => !s.done).rt;
+      return `<b>${d.name}</b> ${d.found ? "reached the finish" : "ran out of cells to search"} after <b>${d.nodes.toLocaleString()}</b> cells; ${o.name} is still searching.`;
+    }
+    if (a.rt === b.rt) return `The same planner on both sides: ${a.rt.nodes.toLocaleString()} cells. Pick another one to compare.`;
+    const [few, many] = a.rt.nodes <= b.rt.nodes ? [a.rt, b.rt] : [b.rt, a.rt];
+    const ratio = many.nodes / Math.max(1, few.nodes), x = ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1);
+    if (!few.found || !many.found) return `${few.found ? many.name : few.name} found no route here.`;
+    if (Math.abs(few.cost - many.cost) < 0.05)
+      return `Both found routes taking <b>${fmtTime(few.cost)}</b>, but <b>${few.name}</b> searched <b>${x}× fewer cells</b>. ${RP_WHY[few.key] || ""}`;
+    if (few.cost < many.cost) return `<b>${few.name}</b> searched ${x}× fewer cells <i>and</i> found the quicker route: <b>${fmtTime(few.cost)}</b> vs ${fmtTime(many.cost)}.`;
+    return `<b>${few.name}</b> searched <b>${x}× fewer cells</b>, but its route takes ${pct(few.cost, many.cost)} longer: ${fmtTime(few.cost)} vs ${fmtTime(many.cost)}. ${RP_WHY[few.key] || ""}`;
+  }
+  function replayHUD() {
+    const W = stage.clientWidth, Hh = stage.clientHeight, across = splitAcross();
+    replay.sides.forEach((sd, k) => {
+      const el = RP.lab[k], rt = sd.rt, n = Math.min(rt.nodes, Math.floor(replay.step));
+      const status = !sd.done ? "searching…" : rt.found ? `route <b>${fmtTime(rt.cost)}</b>` : "no route";
+      el.innerHTML = `<span class="rp-name"><span class="swatch" style="background:${rt.color}"></span>${rt.name}</span>`
+        + `<span class="rp-count"><b>${n.toLocaleString()}</b> cells searched · ${status}</span>`;
+      el.style.left = `${across ? k * W / 2 + 16 : 16}px`;
+      el.style.top = `calc(${across ? 14 : k * Hh / 2 + 14}px + ${k && !across ? "0px" : "env(safe-area-inset-top, 0px)"})`;
+    });
+    Object.assign(RP.split.style, across ? { left: `${W / 2 - 1}px`, top: "0px", width: "2px", height: "100%" }
+                                         : { left: "0px", top: `${Hh / 2 - 1}px`, width: "100%", height: "2px" });
+    const cap = replayCaption();
+    if (RP.cap.innerHTML !== cap) RP.cap.innerHTML = cap;
+  }
+  function renderSplit() {                          // each half: the same camera, that planner's search on the ground
+    const W = stage.clientWidth, Hh = stage.clientHeight, across = splitAcross();
+    const glow = Math.max(12, replay.rate * rpMult() * 0.35);
+    renderer.setScissorTest(true);
+    renderer.shadowMap.autoUpdate = false;          // one shadow map serves both halves
+    replay.sides.forEach((sd, k) => {
+      const w = across ? W / 2 : W, h = across ? Hh : Hh / 2, x = across ? k * w : 0, y = across ? 0 : (1 - k) * h;
+      renderer.setViewport(x, y, w, h); renderer.setScissor(x, y, w, h);
+      camera.aspect = w / h; camera.updateProjectionMatrix();
+      showSearchOf(sd.rt, Math.min(replay.step, sd.rt.nodes), glow, 0.35);
+      replay.sides.forEach(o => { if (o.line) o.line.visible = o === sd && sd.done; });
+      renderer.shadowMap.needsUpdate = k === 0;
+      renderer.render(scene, camera);
+    });
+    renderer.setScissorTest(false); renderer.shadowMap.autoUpdate = true;
+    renderer.setViewport(0, 0, W, Hh); renderer.setScissor(0, 0, W, Hh);
+    camera.aspect = W / Hh; camera.updateProjectionMatrix();
+  }
+  $("t-watch").onclick = () => startReplay();
+  $("rp-close").onclick = stopReplay;
+  RP.play.onclick = () => {
+    if (!replay.playing && replay.sides.every(s => s.done && s.reveal >= 1)) { startReplay(); return; }   // finished: again
+    replay.playing = !replay.playing; RP.play.textContent = replay.playing ? "Pause" : "Play";
+  };
+  $("rp-restart").onclick = () => startReplay();
+  [RP.left, RP.right].forEach(sel => sel.addEventListener("change", () => startReplay([RP.left.value, RP.right.value])));
+  RP.speed.addEventListener("input", () => { const m = rpMult(); RP.speedVal.textContent = `${m < 1 ? m.toString().replace(/^0/, "") : m}×`; });
+  addEventListener("keydown", ev => {
+    if (ev.key !== "Escape") return;
+    if (replay.on) stopReplay();
+    else if (senseView.arming) armBlock(false);
+  });
 
   // ---------------------------------------------------------------- links to a view: #desert/p19/drone, or #tour
   // The address keeps up with the map, the path being driven and the camera, so a copied link opens the same view.
@@ -3230,6 +4389,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
       const pm = /^p(\d{1,2})$/.exec(w);
       if (pm) out.path = +pm[1] - 1;
       if (Object.keys(VIEW_WORD).includes(w)) out.view = w;
+      if (w === "search" || w === "sensor" || w === "bench" || w === "air") out[w] = true;
     }
     return out;
   }
@@ -3238,12 +4398,103 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     if (tour || !MAP) return;
     const d = drivenPreset(), parts = [MAP.key];
     if (d >= 0) parts.push(`p${d + 1}`);
+    if (air.on) parts.push("air");
+    else if (replay.on) parts.push("search");
+    else if (sensing()) parts.push("sensor");
     if (!plan.mode && VIEW_WORD[mode]) parts.push(VIEW_WORD[mode]);
     const h = "#" + parts.join("/");
     if (h === hashNow) return;
     hashNow = h;
     try { history.replaceState(null, "", h); } catch (e) { /* some embeds don't allow it */ }
   }
+
+  // ---------------------------------------------------------------- frame-rate benchmark: #bench in the address
+  // Drives each map's tour path and, for the drone view, the overview and the split-screen search, measures the frame
+  // rate the browser actually delivers (capped by the display's refresh rate) and the time to draw one frame with the
+  // GPU waited on (readPixels after the draw), at full quality; then the drone view once more at the governor's lowest
+  // quality. Results show in a panel, go to the console as BENCH_JSON and to window.__bench.
+  const BENCH = { on: false, rec: false, dts: [] };
+  const sleep = ms => new Promise(res => setTimeout(res, ms));
+  const quantile = (a, q) => { const b = a.slice().sort((x, y) => x - y); return b.length ? b[Math.min(b.length - 1, Math.floor(q * b.length))] : NaN; };
+  function syncDraws(n, budget = 4000) {            // up to n frames back to back (at least 3, about `budget` ms in all),
+    const gl = renderer.getContext(), px = new Uint8Array(4), out = [], start = performance.now();   // waiting for the GPU each time
+    for (let i = 0; i < n && (i < 3 || performance.now() - start < budget); i++) {
+      const t0 = performance.now();
+      if (replay.on) renderSplit(); else { syncOverlay(); renderer.render(scene, camera); }
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      out.push(performance.now() - t0);
+    }
+    return out;
+  }
+  async function runBench() {
+    if (BENCH.on) return;
+    BENCH.on = true;
+    stopTour(); stopReplay(); if (plan.mode) exitPlan(); if (!pathsPanel.hidden) showPaths(false);
+    const panel = $("bench"), rowsB = $("bench-rows"), prog = $("bench-prog");
+    panel.hidden = false; rowsB.textContent = ""; $("bench-copy").disabled = true; $("bench-note").textContent = "";
+    const gl = renderer.getContext(), dbg = gl.getExtension("WEBGL_debug_renderer_info");
+    const info = { gpu: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
+                   webgl: renderer.capabilities.isWebGL2 ? 2 : 1, window: [innerWidth, innerHeight], dpr: devicePixelRatio,
+                   ua: navigator.userAgent, when: new Date().toISOString() };
+    const savedQ = qLevel;
+    qLevel = 0; applyQuality();
+    info.buffer = [dbSize.x, dbSize.y];
+    $("bench-gpu").textContent = `${info.gpu} · WebGL ${info.webgl} · ${info.window[0]}×${info.window[1]} window, drawn at ${info.buffer[0]}×${info.buffer[1]} (full quality)`;
+    const keys = ["grassland", "desert", "island"].filter(k => SCENE.maps.some(m => m.key === k));
+    const jobs = [];
+    for (const k of keys) for (const v of ["drone", "course", "search"]) jobs.push([k, v, 0]);
+    jobs.push(["desert", "drone", QUALITY.length - 1]);
+    const rows = [], VIEWN = { drone: "Drone", course: "Overview", search: "Search, split" };
+    let mapNow = "";
+    for (let j = 0; j < jobs.length; j++) {
+      const [k, v, q] = jobs[j], i = SCENE.maps.findIndex(m => m.key === k);
+      prog.textContent = `${j + 1} of ${jobs.length}: ${SCENE.maps[i].name}, ${VIEWN[v].toLowerCase()}…`;
+      if (q !== qLevel) { qLevel = q; applyQuality(); }
+      if (k !== mapNow) { stopReplay(); loadMap(i, false); drivePreset(THEMES[k].tour.path, false); mapNow = k; await sleep(1500); }
+      if (v === "search") startReplay(["dijkstra", "astar"]);
+      else { stopReplay(); setMode(v, true); }
+      playing = true; syncPlay();
+      await sleep(1200);                            // shaders compile and the view settles
+      BENCH.dts = []; BENCH.rec = true;
+      const t0 = performance.now();                  // 2.5 s, and at least a dozen frames on a slow device (up to 30 s)
+      while (performance.now() - t0 < 2500 || (BENCH.dts.length < 12 && performance.now() - t0 < 30000)) await sleep(100);
+      BENCH.rec = false;
+      const draws = syncDraws(20), dts = BENCH.dts.length > 6 ? BENCH.dts.slice(2) : BENCH.dts.slice();
+      const row = { map: SCENE.maps[i].name, view: VIEWN[v] + (q ? ", lowest quality" : ""), fps: 1000 / quantile(dts, 0.5),
+                    low1: 1000 / quantile(dts, 0.99), drawMs: quantile(draws, 0.5), drawP90: quantile(draws, 0.9), frames: dts.length,
+                    calls: renderer.info.render.calls, tris: renderer.info.render.triangles };
+      rows.push(row);
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${row.map}</td><td>${row.view}</td><td>${row.fps.toFixed(row.fps < 10 ? 1 : 0)}</td><td>${row.low1.toFixed(row.low1 < 10 ? 1 : 0)}</td>`
+        + `<td>${row.drawMs.toFixed(1)}</td>`;
+      rowsB.appendChild(tr);
+    }
+    qLevel = savedQ; applyQuality();
+    stopReplay(); setMode("course");
+    const res = { info, rows };
+    window.__bench = res;
+    console.log("BENCH_JSON " + JSON.stringify(res));
+    const full = rows.filter(r => !r.view.includes("lowest"));
+    prog.textContent = "Done";
+    $("bench-note").textContent = `Median ${Math.round(quantile(full.map(r => r.fps), 0.5))} fps at full quality; drawing a frame takes `
+      + `${quantile(full.map(r => r.drawMs), 0.5).toFixed(1)} ms (median), so the GPU could manage about ${Math.round(1000 / quantile(full.map(r => r.drawMs), 0.5))} fps. `
+      + `The frame rate can't go above the display's refresh rate.`;
+    $("bench-copy").disabled = false;
+    $("bench-copy").onclick = () => {
+      const text = [`Rover Hill Course frame-rate benchmark, ${info.when}`, `${info.gpu} · WebGL ${info.webgl} · ${info.window.join("×")} window at ${info.buffer.join("×")} · DPR ${info.dpr}`,
+        ...rows.map(r => `${r.map} · ${r.view}: ${r.fps.toFixed(1)} fps (1% low ${r.low1.toFixed(1)}), draw ${r.drawMs.toFixed(1)} ms (p90 ${r.drawP90.toFixed(1)})`)].join("\n");
+      try { navigator.clipboard.writeText(text).then(() => { $("bench-copy").textContent = "Copied"; }); } catch (e) { /* no clipboard */ }
+    };
+    BENCH.on = false;
+  }
+  $("bench-close").onclick = () => { $("bench").hidden = true; };
+  // the frames per second, live: ?fps in the address, or press F
+  const fpsEl = $("d-fps"), fpsN = $("d-fps-n");
+  let fpsT = 0, fpsFrames = 0;
+  if (/[?&]fps\b/.test(location.search)) fpsEl.hidden = false;
+  addEventListener("keydown", ev => {
+    if ((ev.key === "f" || ev.key === "F") && !ev.metaKey && !ev.ctrlKey && !ev.altKey && !(ev.target instanceof HTMLInputElement || ev.target instanceof HTMLSelectElement)) fpsEl.hidden = !fpsEl.hidden;
+  });
 
   // ---------------------------------------------------------------- per-frame
   let side = 1;
@@ -3283,23 +4534,26 @@ vec3 groundNormal(vec3 nv, vec2 p) {
       o.material.alphaToCoverage = Q.a2c; o.material.needsUpdate = true; } });
   }
   function govern(realDt, now) {
-    if (qualityPinned || document.hidden || now < settleUntil || qLevel >= QUALITY.length - 1) return;
+    if (qualityPinned || BENCH.on || document.hidden || now < settleUntil || qLevel >= QUALITY.length - 1) return;
     slowFor = realDt > 1 / 40 ? slowFor + Math.min(realDt, 0.5) : Math.max(0, slowFor - realDt);
     if (slowFor > 2.5) { qLevel++; slowFor = 0; settleUntil = now + 1500; applyQuality(); }
   }
   let prevT = performance.now(), hudT = 1, emitAcc = 0;
   function frame(now) {
     govern((now - prevT) / 1000, now);
+    if (BENCH.rec) BENCH.dts.push(now - prevT);
+    fpsFrames++;
+    if ((fpsT += now - prevT) >= 500) { if (!fpsEl.hidden) fpsN.textContent = Math.round(fpsFrames * 1000 / fpsT); fpsT = 0; fpsFrames = 0; }
     if (tour) tourTick(Math.min(0.25, Math.max(0, (now - prevT) / 1000)));
     syncHash();
     const dt = Math.max(0, Math.min(0.05, (now - prevT) / 1000)); prevT = now;
-    const t = now / 1000, total = current.cost, playback = +speedEl.value, driving = !current.park;
+    const t = now / 1000, total = current.cost, playback = +speedEl.value * (air.on ? 0.25 : 1), driving = !current.park;
 
     // 1. drive by the clock: after simT seconds the rover is where the time model says (parked: it waits)
     const finishing = driving && simT >= total;
     if (playing && driving) {
       if (!finishing) simT = Math.min(total, simT + dt * playback);
-      else if ((finishT += dt) > 3.2) restartLap(true);
+      else if ((finishT += dt) > (current.key === DSTAR.key ? 7 : 3.2)) restartLap(true);   // time to read how the sensor drive went
     }
     const [s, mps] = sAtTime(current, simT);
     const v = playing && driving && simT < total ? mps * playback : 0;
@@ -3311,7 +4565,9 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     const grade = (groundH(P.x + fwd.x * 0.8, P.z + fwd.z * 0.8) - groundH(P.x - fwd.x * 0.8, P.z - fwd.z * 0.8)) / 1.6;
     const surf = SURF[clamp(Math.round(P.z + (R - 1) / 2), 0, R - 1) * C + clamp(Math.round(P.x + (C - 1) / 2), 0, C - 1)];
 
-    // 2. sit on the terrain, pitch and roll with it
+    // 2. sit on the terrain, pitch and roll with it (or, in the air, fly)
+    if (air.on) airTick(dt, t, v, P, T);
+    else {
     up.copy(normalAt(P.x, P.z, 0.9));
     f2.copy(fwd).addScaledVector(up, -fwd.dot(up)).normalize();
     xr.crossVectors(up, f2).normalize();
@@ -3323,9 +4579,10 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     const lookYaw = clamp(Math.atan2(lookP.dot(rightH), lookP.dot(fwd)), -1, 1) * 0.9;
     rover.animate(t, v, dt, lookYaw, finishing);
     roverSpot.value.set(P.x, gy + 0.45, P.z);
+    }
 
     // 3. dust, tread marks, route ahead
-    if (v > 0) {
+    if (v > 0 && !air.on) {
       emitAcc += dt * (DUSTS[surf] || DUSTS[0]).rate * Math.min(1.8, v / 3) * (reduceMotion ? 0.3 : 1);
       while (emitAcc >= 1) { emitAcc -= 1; spawnDust(surf, v); }
       if (s - markS >= 0.3) { markS = s; addMark(); }
@@ -3334,9 +4591,12 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     if (!reduceMotion) { waterClock.value = windClock.value = t; if (world.tick) world.tick(t); }
     drapeRing(P.x, P.z, 1 + 0.03 * Math.sin(t * 3));
     ringMat.opacity = 0.7 + 0.25 * Math.sin(t * 3);
-    if (current.tube) {                             // the route ahead of the rover (the planner shows all of it)
-      if (plan.mode) current.tube.geometry.setDrawRange(0, Infinity);
-      else current.tube.geometry.setDrawRange(Math.floor(u * current.segs) * RADIAL * 6, Infinity);
+    if (current.tube) {                             // the route ahead of the rover (the planner shows all of it);
+      if (plan.mode) current.tube.geometry.setDrawRange(0, Infinity);   // the sensor drive shows where it has been instead
+      else if (current.key === DSTAR.key) {
+        const n = Math.floor(u * current.segs) * RADIAL * 6;
+        current.tube.geometry.setDrawRange(0, n); current.planTube.geometry.setDrawRange(0, n);
+      } else current.tube.geometry.setDrawRange(Math.floor(u * current.segs) * RADIAL * 6, Infinity);
     }
     flags.forEach((f, i) => { f.userData.cloth.rotation.y = Math.sin(t * 2.4 + i) * 0.25; });
     if (plan.mode === "draw") {
@@ -3346,7 +4606,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
 
     // 4. drone camera
     camera.position.sub(bob);
-    followP.lerp(tmpV.set(P.x, gy + 0.6, P.z), snap ? 1 : 1 - Math.exp(-dt * 5));
+    followP.lerp(tmpV.set(P.x, air.on && !current.park ? P.y : gy + 0.6, P.z), snap ? 1 : 1 - Math.exp(-dt * 5));
     if (snap) headS.copy(fwd);
     else { headS.lerp(fwd, 1 - Math.exp(-dt * 1.2)); if (headS.lengthSq() > 0.01) headS.normalize(); else headS.copy(fwd); }
     snap = false;
@@ -3401,23 +4661,36 @@ vec3 groundNormal(vec3 nv, vec2 p) {
     updateSky(t);
 
     // 5. map and telemetry
-    if (!plan.mode) drawMinimap(P);
+    if (!plan.mode && !replay.on) drawMinimap(P);
+    senseTick(dt, t);
     G.bar.style.width = (driving && total ? simT / total * 100 : 0) + "%";
     if ((hudT += dt) > 0.1) {
       hudT = 0;
       G.time.textContent = driving ? `${fmtTime(simT)} / ${fmtTime(total)}` : "—";
       G.dist.textContent = s.toFixed(0);
+      if (air.on) {                                 // height above the ground, climb, and whether a tower sees it
+        G.elev.textContent = (current.park ? 0 : P.y - gy).toFixed(1);
+        G.grade.textContent = (current.park ? 0 : T.y / Math.max(1e-6, Math.hypot(T.x, T.z)) * 100).toFixed(0);
+        G.surf.textContent = current.park ? "Landed" : air.seenNow ? "Seen" : "Hidden";
+        G.surf.className = air.seenNow ? "surf-bad" : "surf-good";
+      } else {
       G.elev.textContent = gy.toFixed(1);
       G.grade.textContent = (grade * 100).toFixed(0);
       const sc = SCOST[surf] || 1;
       G.surf.textContent = (MAP.surfaces[surf] || MAP.surfaces[0]).name;
       G.surf.className = sc <= 1 ? "surf-good" : sc < 2 ? "surf-warn" : "surf-bad";
+      }
       G.alt.textContent = Math.max(0, camera.position.y - groundH(camera.position.x, camera.position.z)).toFixed(0);
       G.hdg.textContent = String(Math.round((Math.atan2(fwd.x, -fwd.z) * 180 / Math.PI + 360) % 360)).padStart(3, "0");
     }
 
-    renderer.render(scene, camera);
+    if (replay.on) { replayTick(dt); renderSplit(); }
+    else { syncOverlay(); renderer.render(scene, camera); }
     requestAnimationFrame(frame);
+  }
+  function syncOverlay() {                          // "Search area": the selected route's whole search, drawn into the ground
+    if (showSearch && current && current.explored && current.explored.length && !plan.mode) showSearchOf(current, 1e9, 1);
+    else OVER.uSearchP.value.y = 0;
   }
 
   const dbSize = new THREE.Vector2();
@@ -3439,7 +4712,7 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   // changes, the planner bar opens. The picture glides to the new framing (easeView).
   if (window.ResizeObserver) {
     const refit = new ResizeObserver(() => { if (MAP && mode === "course") viewFit = computeOverviewFit(); });
-    for (const id of ["title-board", "board", "drone", "paths", "tele", "planbar", "tour-cap"]) refit.observe($(id));
+    for (const id of ["title-board", "board", "drone", "paths", "tele", "planbar", "tour-cap", "sense"]) refit.observe($(id));
   }
   if (matchMedia("(max-width: 760px)").matches) $("board").open = false;
   resize();
@@ -3449,7 +4722,11 @@ vec3 groundNormal(vec3 nv, vec2 p) {
   else {
     loadMap(link.map !== undefined ? link.map : 0, link.path === undefined && !link.view);
     if (link.path >= 0 && link.path < MAP.presets.length) drivePreset(link.path, !!link.view && MODES[link.view].follow);
+    if (link.sensor && !parked) { const rt = routes.find(r => r.key === DSTAR.key && r.found); if (rt) select(rt.name, false); }
+    if (link.air) setAir(true, !!link.view);
     if (link.view && mode !== link.view) setMode(link.view);
+    if (link.search && !parked) startReplay();
+    if (link.bench) setTimeout(runBench, 800);
   }
   requestAnimationFrame(frame);
 })();

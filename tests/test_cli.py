@@ -60,3 +60,31 @@ def test_route_races_planners_and_the_shortest_route(small, capsys):
     for name in ("A*", "Dijkstra", "Weighted A*", "Greedy", "BFS", "Shortest route"):
         assert name in out
     assert f"start {small.start} -> destination {small.goal}" in out
+
+
+def _explore_args(**kw):
+    return _args(**{**dict(sensor=5.0, prior="none", block=None), **kw})
+
+
+def test_explore_reports_the_sensor_drive(small, capsys):
+    main.explore(_explore_args())
+    out = capsys.readouterr().out
+    for words in ("sensor 5 m", "knowing nothing beforehand", "drive time", "re-plans", "D* Lite work",
+                  "A* from scratch", "exactly as quick as A* from scratch"):
+        assert words in out
+
+
+def test_explore_takes_roadblocks_but_not_on_obstacles(small, capsys):
+    main.explore(_explore_args(prior="map", block=["20,20"] if not small.blocked[20, 20] else ["21,21"]))
+    assert "1 roadblock(s)" in capsys.readouterr().out
+    blocked = tuple(int(v) for v in np.argwhere(small.blocked)[0])
+    with pytest.raises(SystemExit, match="roadblock"):
+        main.explore(_explore_args(block=[_at(blocked)]))
+    with pytest.raises(SystemExit, match="not both"):
+        main.explore(_explore_args(preset=1, start=_at(small.start)))
+
+
+def test_fly_compares_the_stealth_and_direct_flights(small, capsys):
+    main.fly_cmd(_args())
+    out = capsys.readouterr().out
+    assert "watchtowers see" in out and "Stealth" in out and "Direct" in out and "Staying hidden" in out

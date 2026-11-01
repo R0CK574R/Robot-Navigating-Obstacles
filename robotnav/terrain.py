@@ -7,6 +7,8 @@ surfaces and climbs, so
 
     time = 3-D distance × surface factor × (1 + uphill_penalty × grade⁺)
 
+(the 3-D distance is sqrt(run² + rise²), not hypot, so Python, the C++ core and the browser round it alike)
+
 and any move steeper than `max_grade` is impossible (the treads would slip).
 Every surface factor is at least 1, so a move never takes less time than its
 flat distance; the octile distance stays an admissible heuristic and A* is
@@ -25,6 +27,16 @@ from .algorithms import SearchResult
 from .grid import EIGHT, FOUR, Cell, Grid, is_reachable
 
 SQRT2 = math.sqrt(2)
+
+
+def add_up(values) -> float:
+    """Add drive times left to right, the way the C++ core and the browser add them, so all three agree to the
+    last bit (Python's own sum() has compensated for rounding since 3.12, so its last digit can differ)."""
+    total = 0.0
+    for v in values:
+        total += v
+    return total
+
 
 # surface types
 GRASS, MUD, GRAVEL = 0, 1, 2
@@ -58,7 +70,7 @@ class Terrain(Grid):
         grade = rise / run
         if abs(grade) > self.max_grade:
             return None
-        dist3d = math.hypot(run, rise)
+        dist3d = math.sqrt(run * run + rise * rise)    # not hypot: rounds the same in Python, C++ and JavaScript
         surf = self.surface_costs[int(self.surface[b])]
         return dist3d * surf * (1.0 + self.uphill_penalty * max(grade, 0.0))
 
@@ -78,7 +90,7 @@ class Terrain(Grid):
         return super().heuristic(a, b) * self.cell_size
 
     def path_cost(self, path: list[Cell]) -> float:
-        return sum(self.edge_cost(a, b) for a, b in zip(path, path[1:]))
+        return add_up(self.edge_cost(a, b) for a, b in zip(path, path[1:]))
 
     def path_stats(self, path: list[Cell]) -> dict:
         """Physical stats a robotics engineer would care about."""
@@ -90,7 +102,7 @@ class Terrain(Grid):
         for a, b in zip(path, path[1:]):
             run = (SQRT2 if a[0] != b[0] and a[1] != b[1] else 1.0) * self.cell_size
             rise = float(self.height[b] - self.height[a])
-            seg = math.hypot(run, rise)
+            seg = math.sqrt(run * run + rise * rise)
             dist += seg
             climb += max(rise, 0.0)
             descent += max(-rise, 0.0)
@@ -525,7 +537,7 @@ def _move_graphs(t: Terrain):
         rise = H[r2, c2] - H
         grade = rise / run
         ok &= np.abs(grade) <= t.max_grade
-        secs = np.hypot(run, rise) * surf[r2, c2] * (1.0 + t.uphill_penalty * np.maximum(grade, 0.0))
+        secs = np.sqrt(run * run + rise * rise) * surf[r2, c2] * (1.0 + t.uphill_penalty * np.maximum(grade, 0.0))
         src.append((rr * C + cc)[ok]); dst.append((r2 * C + c2)[ok])
         drive.append(secs[ok]); flat.append(run + SHORTEST_TIE * secs[ok])
     src, dst, N = np.concatenate(src), np.concatenate(dst), R * C
@@ -543,7 +555,7 @@ def _tree_times(t: Terrain, pred: np.ndarray, root: int) -> np.ndarray:
     run = np.where((dr != 0) & (dc != 0), SQRT2, 1.0) * t.cell_size
     Hf, S = t.height.ravel(), np.asarray(t.surface_costs, dtype=float)[t.surface.ravel()]
     rise = Hf[v] - Hf[u]
-    secs = np.hypot(run, rise) * S[v] * (1.0 + t.uphill_penalty * np.maximum(rise / run, 0.0))
+    secs = np.sqrt(run * run + rise * rise) * S[v] * (1.0 + t.uphill_penalty * np.maximum(rise / run, 0.0))
     val = np.where(has, secs, 0.0)
     val[root] = 0.0
     ptr = u.copy(); ptr[root] = root

@@ -13,6 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .airspace import AIR, place_towers
 from .terrain import SHORTEST_TIE, Terrain, preset_routes
 
 TEMPLATE = Path(__file__).with_name("viewer3d.html")
@@ -36,12 +37,14 @@ def map_scene(t: Terrain) -> dict:
                       distance_m=float(p["distance_m"]), short_time=float(p["short_time"]),
                       saving=float(p["saving"]), path=[int(v) for cell in p["path"] for v in cell])
                  for p in preset_routes(t)],                 # the 20 optional paths, quickest route each
+        towers=[list(cell) for cell in place_towers(t)],     # the air route's watchtowers
     )
 
 
 TITLE = "Rover Hill Course"
 DESCRIPTION = ("A rover finds the quickest path over hilly terrain: five pathfinding algorithms raced in 3D, "
-               "with a drone camera, three maps and a guided tour. Runs in the browser.")
+               "the search replayed side by side, D* Lite re-planning with a limited sensor, and a drone that flies "
+               "an air route out of enemy sight. Runs in the browser.")
 
 
 def write_viewer(maps: list[Terrain], out: str | Path, scenes: list[dict] | None = None,
@@ -52,7 +55,7 @@ def write_viewer(maps: list[Terrain], out: str | Path, scenes: list[dict] | None
     Pass `site_url` (where the page will be hosted, ending in "/") to add link-preview tags, so a shared
     link shows the title, a description and social.png from that address.
     """
-    scene = dict(cost=dict(uphill=maps[0].uphill_penalty, cell=maps[0].cell_size, short_tie=SHORTEST_TIE),
+    scene = dict(cost=dict(uphill=maps[0].uphill_penalty, cell=maps[0].cell_size, short_tie=SHORTEST_TIE), air=AIR,
                  maps=scenes if scenes is not None else [map_scene(t) for t in maps])
     body = TEMPLATE.read_text().replace("/*__SCENE__*/null", json.dumps(scene, separators=(",", ":")))
     head = ["<!doctype html>", '<html lang="en">', '<meta charset="utf-8">',

@@ -10,6 +10,12 @@
     python main.py route --map island --preset 3
     python main.py terrain-bench        # sweep hilliness / grade limit / obstacles
     python main.py score-route my_route.json   # score a route drawn in the 3D viewer
+    python main.py explore --map desert --preset 19 --sensor 5   # drive seeing 5 m, re-planning with D* Lite
+    python main.py explore-bench        # every preset at 5, 10 and 20 m: time lost, D* Lite vs A* from scratch
+    python main.py fly --map desert --preset 19   # the air route: a drone flies out of the watchtowers' sight
+    python main.py route --map desert --preset 19 --engine cpp   # the same, computed by the C++ core
+    python main.py export               # map files for the C++ tool (cpp/build/robotnav route maps/desert.map ...)
+    python main.py parity               # the C++ core against the Python reference: identical results, and the speed-up
 """
 from __future__ import annotations
 
@@ -94,10 +100,24 @@ def _print_results(t, results, extra=()) -> None:
               f"{'—' if ms is None else f'{ms:.1f}':>8}")
 
 
-def _race(t, start, goal):
+def _race(t, start, goal, engine=None):
     """The five planners plus the hill-blind shortest route, as the viewer's stage board shows them."""
+    if engine is not None:
+        return engine.race(t, start, goal)
     from robotnav.terrain import plan_pair, shortest_route
     return plan_pair(t, start, goal) + [shortest_route(t, start, goal)]
+
+
+def _engine(args):
+    """robotnav.cpp (the C++ core) for --engine cpp, None for the Python reference."""
+    if getattr(args, "engine", "python") != "cpp":
+        return None
+    from robotnav import cpp
+    try:
+        cpp.core()
+    except ImportError as e:
+        raise SystemExit(str(e))
+    return cpp
 
 
 def course(args) -> None:
@@ -125,25 +145,9 @@ def route(args) -> None:
     """Race the planners between any two cells, exactly like setting START and FINISH in the viewer."""
     from robotnav.terrain import solvable_map
 
-    if args.preset is not None and (args.start or args.goal):
-        raise SystemExit("Use --preset, or --start and --goal, not both.")
     t = solvable_map(args.map, seed=args.seed, size=args.size, max_grade=args.grade)
-    start = _cell(args.start) if args.start else t.start
-    goal = _cell(args.goal) if args.goal else t.goal
-    if args.preset is not None:
-        from robotnav.terrain import preset_routes
-        presets = preset_routes(t)
-        if not 1 <= args.preset <= len(presets):
-            raise SystemExit(f"Pick a preset from 1 to {len(presets)}.")
-        start, goal = presets[args.preset - 1]["start"], presets[args.preset - 1]["goal"]
-    for name, (r, c) in (("start", start), ("destination", goal)):
-        if not (0 <= r < t.rows and 0 <= c < t.cols):
-            raise SystemExit(f"The {name} {(r, c)} is outside the {t.rows}x{t.cols} map.")
-        if t.blocked[r, c]:
-            raise SystemExit(f"The {name} {(r, c)} is on an obstacle or water. Pick an open cell.")
-    if start == goal:
-        raise SystemExit("The start and destination are the same cell. Pick two different cells.")
-    results = _race(t, start, goal)
+    start, goal = _trip(args, t)
+    results = _race(t, start, goal, _engine(args))
     print(f"{t.meta['theme'].title()} (seed {t.meta['seed']}): start {start} -> destination {goal}")
     if not any(r.found for r in results):
         raise SystemExit("No drivable route between those cells: one is walled in by obstacles, water or steep slopes.")
@@ -179,6 +183,170 @@ def paths(args) -> None:
         for k, pr in enumerate(preset_routes(t), start=1):
             print(f"  P{k:<4}{pr['name']:<17}{str(pr['start']):>10}{str(pr['goal']):>13}{clock(pr['time']):>10}"
                   f"{clock(pr['short_time']):>10}{pr['short_time'] / pr['time'] - 1:>+8.0%}{pr['distance_m']:>8.0f}")
+
+
+def _trip(args, t):
+    """Start and destination from --preset, or --start/--goal (default: the map's flags), checked like the viewer does."""
+    if args.preset is not None and (args.start or args.goal):
+        raise SystemExit("Use --preset, or --start and --goal, not both.")
+    start = _cell(args.start) if args.start else t.start
+    goal = _cell(args.goal) if args.goal else t.goal
+    if args.preset is not None:
+        from robotnav.terrain import preset_routes
+        presets = preset_routes(t)
+        if not 1 <= args.preset <= len(presets):
+            raise SystemExit(f"Pick a preset from 1 to {len(presets)}.")
+        start, goal = presets[args.preset - 1]["start"], presets[args.preset - 1]["goal"]
+    for name, (r, c) in (("start", start), ("destination", goal)):
+        if not (0 <= r < t.rows and 0 <= c < t.cols):
+            raise SystemExit(f"The {name} {(r, c)} is outside the {t.rows}x{t.cols} map.")
+        if t.blocked[r, c]:
+            raise SystemExit(f"The {name} {(r, c)} is on an obstacle or water. Pick an open cell.")
+    if start == goal:
+        raise SystemExit("The start and destination are the same cell. Pick two different cells.")
+    return tuple(start), tuple(goal)
+
+
+PRIOR_WORDS = {"none": "knowing nothing beforehand", "elevation": "knowing the hills but not the obstacles",
+               "map": "knowing the map but not the roadblocks"}
+
+
+def explore(args) -> None:
+    """Drive with a limited sensor, re-planning with D* Lite: the viewer's D* Lite row."""
+    from robotnav.replan import Roadblock, sensor_drive
+    from robotnav.terrain import solvable_map
+
+    t = solvable_map(args.map, seed=args.seed, size=args.size, max_grade=args.grade)
+    start, goal = _trip(args, t)
+    engine = _engine(args)
+    blocks = [Roadblock(_cell(b)) for b in (args.block or [])]
+    for b in blocks:
+        if not (0 <= b.cell[0] < t.rows and 0 <= b.cell[1] < t.cols):
+            raise SystemExit(f"The roadblock {b.cell} is outside the {t.rows}x{t.cols} map.")
+        if t.blocked[b.cell] or b.cell in (start, goal):
+            raise SystemExit(f"A roadblock at {b.cell} would sit on an obstacle, water, the start or the destination.")
+    drive = sensor_drive if engine is None else engine.sensor_drive
+    run = drive(t, start, goal, sensor_range=args.sensor, prior=args.prior, roadblocks=blocks, check=True)
+    clock = lambda sec: "{}:{:02d}".format(*divmod(round(sec), 60))
+    print(f"{t.meta['theme'].title()} (seed {t.meta['seed']}): start {start} -> destination {goal}, "
+          f"sensor {args.sensor:g} m, {PRIOR_WORDS[args.prior]}" + (f", {len(blocks)} roadblock(s)" if blocks else ""))
+    if not run.found:
+        raise SystemExit("The rover could not reach the destination: the roadblocks wall it off.")
+    cells = [divmod(i, t.cols) for i in run.driven]
+    more = run.astar_work / max(1, run.dstar_work)
+    print(f"  drive time       {clock(run.time):>7}   {run.extra:+.1%} on A* with the whole map known ({clock(run.optimal)})")
+    print(f"  distance         {t.path_stats(cells)['distance_m']:>5.0f} m   in {len(cells) - 1} moves")
+    print(f"  re-plans         {run.replans:>7}   times newly sensed ground broke the plan")
+    print(f"  D* Lite work     {run.dstar_work:>7,}   cells expanded over the whole drive")
+    print(f"  A* from scratch  {run.astar_work:>7,}   cells, planning again each time the plan broke "
+          f"({more:.1f}x {'more' if more >= 1 else 'less'})")
+    print(f"  sensed           {run.sensed:>7,}   cells ({run.sensed / (t.rows * t.cols):.0%} of the map)")
+    print(f"  every repaired plan was exactly as quick as A* from scratch (largest difference {run.max_check_error:.1e} s)")
+
+
+def explore_bench(args) -> None:
+    """Every preset path of every map at several sensor ranges: the time lost by not knowing, and D* Lite's work."""
+    import pandas as pd
+    from robotnav.replan import sensor_drive
+    from robotnav.terrain import THEMES, preset_routes, solvable_map
+
+    OUT.mkdir(exist_ok=True)
+    rows = []
+    for theme in THEMES:
+        t = solvable_map(theme, seed=args.seed)
+        for k, pr in enumerate(preset_routes(t), start=1):
+            for rng in args.ranges:
+                run = sensor_drive(t, pr["start"], pr["goal"], sensor_range=rng, prior=args.prior)
+                rows.append(dict(map=theme, path=k, sensor_m=rng, found=run.found, extra=run.extra, replans=run.replans,
+                                 dstar_work=run.dstar_work, astar_work=run.astar_work,
+                                 work_ratio=run.astar_work / max(1, run.dstar_work), ms=run.runtime_ms))
+        print(f"{theme}: done", flush=True)
+    df = pd.DataFrame(rows)
+    df.to_csv(OUT / "explore_results.csv", index=False)
+    print(f"\nDriving with a limited sensor, {PRIOR_WORDS[args.prior]} (seed {args.seed}, 20 preset paths per map)")
+    print(f"  {'map':<11}{'sensor':>7}{'time lost':>11}{'worst':>8}{'re-plans':>10}{'D* Lite':>9}{'A* again':>10}{'A*/D*':>8}")
+    for (theme, rng), g in df.groupby(["map", "sensor_m"], sort=False):
+        print(f"  {theme:<11}{rng:>5g} m{g.extra.median():>+10.0%}{g.extra.max():>+8.0%}{g.replans.median():>10.0f}"
+              f"{g.dstar_work.median():>9,.0f}{g.astar_work.median():>10,.0f}{g.work_ratio.median():>7.2f}x")
+    print("\n(medians; time lost is the extra drive time over A* with the whole map known; A*/D* above 1 means")
+    print(" D* Lite did less work than planning again from scratch with A* each time the plan broke)")
+    print(f"Saved {OUT / 'explore_results.csv'}")
+
+
+def fly_cmd(args) -> None:
+    """The air route between two cells: the stealth flight against the direct one, as the viewer's Air mode races them."""
+    from robotnav.airspace import AIR, fly, make_airspace
+    from robotnav.terrain import solvable_map
+
+    t = solvable_map(args.map, seed=args.seed, size=args.size, max_grade=args.grade)
+    start, goal = _trip(args, t)
+    engine = _engine(args)
+    if engine is not None:
+        make_airspace, fly = engine.make_airspace, engine.fly
+    air = make_airspace(t)
+    flights = [fly(air, start, goal, stealth=True), fly(air, start, goal, stealth=False)]
+    clock = lambda sec: "{}:{:02d}".format(*divmod(round(sec), 60))
+    print(f"{t.meta['theme'].title()} (seed {t.meta['seed']}): start {start} -> destination {goal}; "
+          f"{len(air.towers)} watchtowers see {AIR['sight']:g} m (towers at {', '.join(map(str, air.towers))})")
+    print(f"  {'route':<10}{'time':>7}{'in sight':>10}{'dist m':>8}{'top m':>7}{'searched':>10}{'ms':>8}")
+    for f in flights:
+        print(f"  {f.name:<10}{clock(f.time):>7}{f.seen:>9.1f}s{f.distance:>8.0f}{f.top:>7.1f}{f.nodes:>10,}{f.runtime_ms:>8.1f}")
+    st, di = flights
+    print(f"Staying hidden costs {st.time / di.time - 1:+.0%} flight time and cuts the time in sight from {di.seen:.1f} s to {st.seen:.1f} s.")
+
+
+def export(args) -> None:
+    """Write each map, with its default flags and its 20 preset trips, to a map file for the C++ tool."""
+    from robotnav.mapfile import write_map
+    from robotnav.terrain import THEMES, solvable_map
+
+    for theme in ([args.map] if args.map else THEMES):
+        t = solvable_map(theme, seed=args.seed, size=args.size, max_grade=args.grade)
+        path = write_map(t, Path(args.out) / f"{theme}.map")
+        print(f"{path}  ({theme}, seed {t.meta['seed']}, {t.rows}x{t.cols})")
+    print(f"The C++ tool reads them, for example: cpp/build/robotnav route {Path(args.out) / 'desert.map'} --preset 19")
+
+
+def _secs(ms: float) -> str:
+    return f"{ms / 1e3:.2f} s" if ms >= 1e3 else f"{ms:.0f} ms" if ms >= 10 else f"{ms:.1f} ms"
+
+
+def parity(args) -> None:
+    """The C++ core against the Python reference on the preset trips: identical results, and how much faster."""
+    from robotnav import cpp
+    from robotnav.parity import compare_map
+    from robotnav.terrain import THEMES, preset_routes, solvable_map
+
+    try:
+        cpp.core()
+    except ImportError as e:
+        raise SystemExit(str(e))
+    n = 5 if args.quick else 20
+    print(f"C++ core vs the Python reference: seed {args.seed}, {args.size}x{args.size} maps, {n} preset trips each")
+    rows = []
+    for theme in THEMES:
+        t = solvable_map(theme, seed=args.seed, size=args.size)
+        print(f"{theme:<10}", end="", flush=True)
+        rows.append((theme, compare_map(t, preset_routes(t)[:n], log=print)))
+    print(f"\n  {'map':<11}{'edge costs':>14}{'planners':>10}{'path stats':>12}{'D* Lite':>9}{'airspace':>10}{'flights':>9}")
+    for theme, res in rows:
+        print(f"  {theme:<11}{str(res['edges']):>14}{str(res['planners']):>10}{str(res['stats']):>12}"
+              f"{str(res['drives']):>9}{str(res['airspace']):>10}{str(res['flights']):>9}")
+    diffs = [d for _, res in rows for tally in res.values() for d in tally.diffs]
+    if diffs:
+        print("\nDifferences:")
+        for d in diffs[:20]:
+            print("  " + d)
+        raise SystemExit(f"{len(diffs)} result(s) differ.")
+    print("\nIdentical, compared with == (no tolerance): every edge cost, route, cell searched (in order), frontier peak,")
+    print("drive time and path statistic; every step of every D* Lite drive; the airspace; every flight.")
+    print(f"\n  {'speed, all trips together':<44}{'Python':>10}{'C++':>10}{'faster':>9}")
+    for key, label in (("planners", "five planners + shortest route"), ("drives", "D* Lite drives, A* baseline included"),
+                       ("flights", "air routes, stealth and direct"), ("airspace", "building the airspace")):
+        py = sum(res[key].py_ms for _, res in rows)
+        cc = sum(res[key].cpp_ms for _, res in rows)
+        count = sum(res[key].total for _, res in rows)
+        print(f"  {f'{label} ({count})':<44}{_secs(py):>10}{_secs(cc):>10}{py / max(cc, 1e-9):>8.0f}x")
 
 
 def score_route(args) -> None:
@@ -246,6 +414,54 @@ def main() -> None:
     sr = sub.add_parser("score-route", help="score a route copied from the 3D viewer")
     sr.add_argument("file", help="JSON file with the copied route")
     sr.set_defaults(func=score_route)
+
+    ex = sub.add_parser("explore", help="drive seeing only a few metres, re-planning with D* Lite")
+    ex.add_argument("--map", choices=["grassland", "desert", "island"], default="grassland")
+    ex.add_argument("--start", help="row,col (default: the map's start flag)")
+    ex.add_argument("--goal", help="row,col (default: the map's destination flag)")
+    ex.add_argument("--preset", type=int, help="drive one of the 20 preset paths (1-20) instead")
+    ex.add_argument("--sensor", type=float, default=5.0, help="how far the rover sees, in metres (default 5)")
+    ex.add_argument("--prior", choices=["none", "elevation", "map"], default="none",
+                    help="what it knows beforehand: nothing, the hills only, or the map without the roadblocks")
+    ex.add_argument("--block", action="append", metavar="ROW,COL", help="a roadblock not on the map (repeatable)")
+    ex.add_argument("--size", type=int, default=96)
+    ex.add_argument("--grade", type=float, default=0.6)
+    ex.add_argument("--seed", type=int, default=3)
+    ex.set_defaults(func=explore)
+
+    fl = sub.add_parser("fly", help="the air route: a drone flies out of the watchtowers' sight")
+    fl.add_argument("--map", choices=["grassland", "desert", "island"], default="grassland")
+    fl.add_argument("--start", help="row,col (default: the map's start flag)")
+    fl.add_argument("--goal", help="row,col (default: the map's destination flag)")
+    fl.add_argument("--preset", type=int, help="fly one of the 20 preset paths (1-20) instead")
+    fl.add_argument("--size", type=int, default=96)
+    fl.add_argument("--grade", type=float, default=0.6)
+    fl.add_argument("--seed", type=int, default=3)
+    fl.set_defaults(func=fly_cmd)
+
+    for p in (rt, ex, fl):
+        p.add_argument("--engine", choices=["python", "cpp"], default="python",
+                       help="python (the reference) or cpp (the C++ core, built in cpp/build)")
+
+    xp = sub.add_parser("export", help="write the maps to map files for the C++ tool")
+    xp.add_argument("--map", choices=["grassland", "desert", "island"], help="one map (default: all three)")
+    xp.add_argument("--out", default="maps", help="folder for the map files (default maps/)")
+    xp.add_argument("--size", type=int, default=96)
+    xp.add_argument("--grade", type=float, default=0.6)
+    xp.add_argument("--seed", type=int, default=3)
+    xp.set_defaults(func=export)
+
+    pa = sub.add_parser("parity", help="the C++ core against the Python reference: identical results, and the speed-up")
+    pa.add_argument("--quick", action="store_true", help="5 preset trips per map instead of 20")
+    pa.add_argument("--size", type=int, default=96)
+    pa.add_argument("--seed", type=int, default=3)
+    pa.set_defaults(func=parity)
+
+    eb = sub.add_parser("explore-bench", help="sensor drives on every preset: time lost, D* Lite vs A* from scratch")
+    eb.add_argument("--ranges", type=float, nargs="+", default=[5.0, 10.0, 20.0], help="sensor ranges in metres")
+    eb.add_argument("--prior", choices=["none", "elevation", "map"], default="none")
+    eb.add_argument("--seed", type=int, default=3)
+    eb.set_defaults(func=explore_bench)
 
     args = ap.parse_args()
     args.func(args)
